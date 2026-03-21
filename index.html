@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Detekce obličeje</title>
+<title>AI Kamera</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
@@ -13,25 +13,21 @@
     height: 100dvh;
     display: flex;
     flex-direction: column;
-    align-items: center;
     overflow: hidden;
   }
   #header {
     width: 100%;
-    padding: 14px 20px 10px;
+    padding: 11px 16px 8px;
     text-align: center;
-    z-index: 10;
     flex-shrink: 0;
+    z-index: 10;
   }
-  #header h1 { font-size: 17px; font-weight: 600; }
-  #status { font-size: 12px; color: #aaa; margin-top: 4px; min-height: 16px; }
+  #header h1 { font-size: 15px; font-weight: 600; letter-spacing: 0.3px; }
+  #status { font-size: 11px; color: #888; margin-top: 2px; min-height: 15px; }
   #container {
     position: relative;
     width: 100%;
     flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
     overflow: hidden;
   }
   #video {
@@ -48,6 +44,8 @@
   #startBtn {
     position: absolute;
     z-index: 20;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
     background: #fff;
     color: #000;
     border: none;
@@ -58,225 +56,455 @@
     cursor: pointer;
     display: none;
   }
-  #startBtn:active { transform: scale(0.96); }
   #camToggle {
     position: absolute;
-    bottom: 24px; right: 20px;
+    bottom: 20px; right: 16px;
     z-index: 20;
-    background: rgba(255,255,255,0.15);
-    border: 1px solid rgba(255,255,255,0.3);
+    background: rgba(255,255,255,0.13);
+    border: 1px solid rgba(255,255,255,0.25);
     border-radius: 50%;
-    width: 52px; height: 52px;
-    font-size: 24px;
+    width: 48px; height: 48px;
+    font-size: 22px;
     cursor: pointer;
     display: none;
     align-items: center;
     justify-content: center;
     color: #fff;
   }
+  #legend {
+    position: absolute;
+    bottom: 20px; left: 14px;
+    z-index: 20;
+    display: none;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .leg { display: flex; align-items: center; gap: 7px; font-size: 11px; color: rgba(255,255,255,0.75); }
+  .leg-dot { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
   #fpsLabel {
     position: absolute;
-    top: 10px; left: 12px;
+    top: 8px; right: 10px;
     z-index: 20;
-    font-size: 11px;
-    color: rgba(255,255,255,0.5);
+    font-size: 10px;
+    color: rgba(255,255,255,0.35);
     font-family: monospace;
-    display: none;
-  }
-  #faceCount {
-    position: absolute;
-    top: 10px; right: 12px;
-    z-index: 20;
-    font-size: 12px;
-    color: rgba(255,255,255,0.8);
     display: none;
   }
   #loader {
     position: absolute;
     z-index: 30;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 14px;
+    gap: 12px;
   }
   .spinner {
-    width: 40px; height: 40px;
-    border: 3px solid rgba(255,255,255,0.2);
+    width: 36px; height: 36px;
+    border: 3px solid rgba(255,255,255,0.12);
     border-top-color: #fff;
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
-  .spinner-text { font-size: 13px; color: #aaa; }
+  .spinner-text { font-size: 12px; color: #777; text-align: center; max-width: 200px; }
+  #progressBar {
+    width: 180px; height: 3px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  #progressFill {
+    height: 100%;
+    background: #fff;
+    border-radius: 2px;
+    width: 0%;
+    transition: width 0.4s ease;
+  }
 </style>
 </head>
 <body>
+
 <div id="header">
-  <h1>&#128248; Detekce obličeje</h1>
-  <div id="status">Načítám AI model...</div>
+  <h1>&#127909; AI Kamera</h1>
+  <div id="status">Načítám modely...</div>
 </div>
 
 <div id="container">
   <video id="video" playsinline autoplay muted></video>
   <canvas id="canvas"></canvas>
+
   <div id="loader">
     <div class="spinner"></div>
-    <div class="spinner-text">Načítám model...</div>
+    <div id="progressBar"><div id="progressFill"></div></div>
+    <div class="spinner-text" id="loaderText">Připravuji AI...</div>
   </div>
+
   <button id="startBtn">Zapnout kameru</button>
   <div id="camToggle">&#8635;</div>
+
+  <div id="legend">
+    <div class="leg"><div class="leg-dot" style="background:#ff3b3b;"></div> Obličej + emoce</div>
+    <div class="leg"><div class="leg-dot" style="background:#00e5a0;"></div> Ruka + gesto</div>
+  </div>
+
   <div id="fpsLabel">0 fps</div>
-  <div id="faceCount"></div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/dist/face-api.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/hands.min.js" crossorigin="anonymous"></script>
+
 <script>
-  const video       = document.getElementById('video');
-  const canvas      = document.getElementById('canvas');
-  const ctx         = canvas.getContext('2d');
-  const statusEl    = document.getElementById('status');
-  const startBtn    = document.getElementById('startBtn');
-  const camToggle   = document.getElementById('camToggle');
-  const fpsLabel    = document.getElementById('fpsLabel');
-  const faceCountEl = document.getElementById('faceCount');
-  const loader      = document.getElementById('loader');
+const video      = document.getElementById('video');
+const canvas     = document.getElementById('canvas');
+const ctx        = canvas.getContext('2d');
+const statusEl   = document.getElementById('status');
+const startBtn   = document.getElementById('startBtn');
+const camToggle  = document.getElementById('camToggle');
+const fpsLabel   = document.getElementById('fpsLabel');
+const legend     = document.getElementById('legend');
+const loader     = document.getElementById('loader');
+const loaderText = document.getElementById('loaderText');
+const progFill   = document.getElementById('progressFill');
 
-  const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/model';
+const FACE_MODEL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/model';
 
-  let facingMode = 'user';
-  let stream = null;
-  let running = false;
-  let lastTime = 0;
-  let frameCount = 0;
-  let fps = 0;
+let facingMode      = 'user';
+let stream          = null;
+let running         = false;
+let mpHands         = null;
+let lastHandResults = [];
+let lastTime        = 0, frameCount = 0;
 
-  async function loadModel() {
-    try {
-      await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
-      statusEl.textContent = 'Model připraven ✓';
-      loader.style.display = 'none';
-      startBtn.style.display = 'block';
-    } catch(e) {
-      loader.style.display = 'none';
-      statusEl.textContent = 'Chyba modelu: ' + e.message;
-      console.error(e);
-    }
+// ── Emoce — překlad + emoji ────────────────────────────────────────────────
+const EMOTION_MAP = {
+  happy:     { cs: 'Šťastný',    emoji: '😊' },
+  sad:       { cs: 'Smutný',     emoji: '😢' },
+  angry:     { cs: 'Naštvaný',   emoji: '😠' },
+  surprised: { cs: 'Překvapený', emoji: '😲' },
+  fearful:   { cs: 'Vystrašený', emoji: '😨' },
+  disgusted: { cs: 'Znechucený', emoji: '🤢' },
+  neutral:   { cs: 'Neutrální',  emoji: '😐' }
+};
+
+// ── Gesta z MediaPipe landmarků ───────────────────────────────────────────
+// Landmark indexy: 4=palec tip, 8=ukazovák tip, 12=prostředník tip, 16=prsteník tip, 20=malíček tip
+// MCP klouby (základna prstu): 5,9,13,17  Wrist: 0
+function getFingerStates(lm) {
+  // Vrátí [palec, ukazovák, prostředník, prsteník, malíček] — true = natažený
+  const tip  = [4, 8, 12, 16, 20];
+  const pip  = [3, 6, 10, 14, 18]; // prostřední kloub
+  const mcp  = [2, 5,  9, 13, 17]; // základna
+  const ext  = [];
+
+  // Palec — porovnáváme x (zrcadleno kamerou)
+  ext.push(lm[4].x < lm[3].x);
+
+  // Ostatní prsty — tip musí být výše (menší y) než pip
+  for (let i = 1; i < 5; i++) {
+    ext.push(lm[tip[i]].y < lm[pip[i]].y);
   }
+  return ext; // [palec, ukaz, pros, prst, mal]
+}
 
-  async function startCamera() {
-    if (stream) stream.getTracks().forEach(t => t.stop());
-    running = false;
-    startBtn.style.display = 'none';
-    statusEl.textContent = 'Spouštím kameru...';
+function countFingers(lm) {
+  return getFingerStates(lm).filter(Boolean).length;
+}
+
+function recognizeGesture(lm) {
+  const [thumb, index, middle, ring, pinky] = getFingerStates(lm);
+  const count = [thumb, index, middle, ring, pinky].filter(Boolean).length;
+
+  if (count === 0)                                    return { emoji: '✊', name: 'Pěst' };
+  if (thumb && !index && !middle && !ring && !pinky)  return { emoji: '👍', name: 'Palec nahoru' };
+  if (!thumb && index && !middle && !ring && pinky)   return { emoji: '🤘', name: 'Rock' };
+  if (!thumb && index && middle && !ring && !pinky)   return { emoji: '✌️',  name: 'Mír' };
+  if (!thumb && index && !middle && !ring && !pinky)  return { emoji: '👆', name: 'Pointing' };
+  if (thumb && index && !middle && !ring && !pinky)   return { emoji: '👌', name: 'OK (L)' };
+  if (!thumb && index && middle && ring && pinky)     return { emoji: '🖐', name: '4 prsty' };
+  if (thumb && index && middle && ring && pinky)      return { emoji: '🖐', name: 'Otevřená ruka' };
+  if (!thumb && !index && !middle && !ring && pinky)  return { emoji: '🤙', name: 'Pinky' };
+  return { emoji: '✋', name: count + ' prstů' };
+}
+
+// ── MediaPipe Hands ───────────────────────────────────────────────────────
+function initMediaPipeHands() {
+  return new Promise((resolve, reject) => {
     try {
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode, width: { ideal: 1280 }, height: { ideal: 720 } },
-        audio: false
+      const hands = new Hands({
+        locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/${f}`
       });
-      video.srcObject = stream;
-      await new Promise(r => { video.onloadedmetadata = r; });
-      video.play();
-      camToggle.style.display = 'flex';
-      fpsLabel.style.display = 'block';
-      faceCountEl.style.display = 'block';
-      statusEl.textContent = 'Hledám obličeje...';
-      running = true;
-      detect();
-    } catch(e) {
-      statusEl.textContent = 'Přístup ke kameře zamítnut';
-      startBtn.style.display = 'block';
-    }
-  }
-
-  function resizeCanvas() {
-    const c = document.getElementById('container');
-    canvas.width  = c.offsetWidth;
-    canvas.height = c.offsetHeight;
-  }
-
-  function getVideoRect() {
-    const vw = video.videoWidth, vh = video.videoHeight;
-    const cw = canvas.width,    ch = canvas.height;
-    if (!vw || !vh) return { x:0, y:0, sx:1, sy:1 };
-    const va = vw/vh, ca = cw/ch;
-    let dw, dh;
-    if (va > ca) { dh = ch; dw = ch * va; }
-    else         { dw = cw; dh = cw / va; }
-    return { x:(cw-dw)/2, y:(ch-dh)/2, sx:dw/vw, sy:dh/vh };
-  }
-
-  function drawCorners(x, y, w, h, len) {
-    ctx.beginPath();
-    ctx.moveTo(x, y+len);     ctx.lineTo(x, y);     ctx.lineTo(x+len, y);
-    ctx.moveTo(x+w-len, y);   ctx.lineTo(x+w, y);   ctx.lineTo(x+w, y+len);
-    ctx.moveTo(x+w, y+h-len); ctx.lineTo(x+w, y+h); ctx.lineTo(x+w-len, y+h);
-    ctx.moveTo(x+len, y+h);   ctx.lineTo(x, y+h);   ctx.lineTo(x, y+h-len);
-    ctx.stroke();
-  }
-
-  async function detect() {
-    if (!running) return;
-    resizeCanvas();
-
-    if (video.readyState >= 2) {
-      const opts = new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.4 });
-      const detections = await faceapi.detectAllFaces(video, opts);
-
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      const r = getVideoRect();
-
-      for (const det of detections) {
-        const { x, y, width: w, height: h } = det.box;
-        const score = det.score;
-
-        const bx = r.x + x * r.sx;
-        const by = r.y + y * r.sy;
-        const bw = w * r.sx;
-        const bh = h * r.sy;
-
-        const gv  = Math.round(180 + 75 * score);
-        const rv  = Math.round(255 * (1 - score));
-        const col = 'rgb(' + rv + ',' + gv + ',80)';
-
-        ctx.strokeStyle = col;
-        ctx.lineWidth = 2;
-        ctx.strokeRect(bx, by, bw, bh);
-
-        ctx.strokeStyle = 'rgba(255,255,255,0.9)';
-        ctx.lineWidth = 3;
-        drawCorners(bx, by, bw, bh, Math.min(bw, bh) * 0.16);
-
-        const label = Math.round(score * 100) + '%';
-        ctx.font = 'bold 13px system-ui, sans-serif';
-        const tw = ctx.measureText(label).width + 12;
-        ctx.fillStyle = col;
-        ctx.fillRect(bx, by - 22, tw, 20);
-        ctx.fillStyle = '#000';
-        ctx.fillText(label, bx + 6, by - 7);
-      }
-
-      const n = detections.length;
-      faceCountEl.textContent = n === 0 ? '' : n === 1 ? '1 obličej' : n + ' obličeje';
-
-      frameCount++;
-      const now = performance.now();
-      if (now - lastTime >= 1000) {
-        fps = frameCount; frameCount = 0; lastTime = now;
-        fpsLabel.textContent = fps + ' fps';
-      }
-    }
-
-    requestAnimationFrame(detect);
-  }
-
-  startBtn.addEventListener('click', startCamera);
-  camToggle.addEventListener('click', () => {
-    facingMode = facingMode === 'user' ? 'environment' : 'user';
-    startCamera();
+      hands.setOptions({ maxNumHands: 2, modelComplexity: 0, minDetectionConfidence: 0.6, minTrackingConfidence: 0.5 });
+      hands.onResults(r => { lastHandResults = r.multiHandLandmarks || []; });
+      hands.initialize().then(() => resolve(hands)).catch(reject);
+    } catch(e) { reject(e); }
   });
-  window.addEventListener('resize', resizeCanvas);
+}
 
-  loadModel();
+// ── Načítání ──────────────────────────────────────────────────────────────
+async function loadModels() {
+  try {
+    loaderText.textContent = 'Načítám detektor obličeje...';
+    progFill.style.width = '10%';
+    await faceapi.nets.tinyFaceDetector.loadFromUri(FACE_MODEL);
+    progFill.style.width = '40%';
+
+    loaderText.textContent = 'Načítám rozpoznávání emocí...';
+    await faceapi.nets.faceExpressionNet.loadFromUri(FACE_MODEL);
+    progFill.style.width = '70%';
+
+    loaderText.textContent = 'Načítám detektor rukou...';
+    mpHands = await initMediaPipeHands();
+    progFill.style.width = '100%';
+
+    setTimeout(() => {
+      loader.style.display = 'none';
+      statusEl.textContent = 'Modely připraveny ✓';
+      startBtn.style.display = 'block';
+    }, 300);
+  } catch(e) {
+    loader.style.display = 'none';
+    statusEl.textContent = 'Chyba: ' + e.message;
+    console.error(e);
+  }
+}
+
+// ── Kamera ────────────────────────────────────────────────────────────────
+async function startCamera() {
+  if (stream) stream.getTracks().forEach(t => t.stop());
+  running = false;
+  startBtn.style.display = 'none';
+  statusEl.textContent = 'Spouštím kameru...';
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode, width: { ideal: 1280 }, height: { ideal: 720 } },
+      audio: false
+    });
+    video.srcObject = stream;
+    await new Promise(r => { video.onloadedmetadata = r; });
+    video.play();
+    camToggle.style.display = 'flex';
+    legend.style.display    = 'flex';
+    fpsLabel.style.display  = 'block';
+    statusEl.textContent    = 'Hledám...';
+    running = true;
+    detect();
+  } catch(e) {
+    statusEl.textContent = 'Přístup ke kameře zamítnut';
+    startBtn.style.display = 'block';
+  }
+}
+
+// ── Canvas helpers ────────────────────────────────────────────────────────
+function resizeCanvas() {
+  const c = document.getElementById('container');
+  canvas.width  = c.offsetWidth;
+  canvas.height = c.offsetHeight;
+}
+
+function getRect() {
+  const vw = video.videoWidth, vh = video.videoHeight;
+  const cw = canvas.width,    ch = canvas.height;
+  if (!vw || !vh) return { x:0, y:0, sx:1, sy:1 };
+  const va = vw/vh, ca = cw/ch;
+  let dw, dh;
+  if (va > ca) { dh = ch; dw = ch * va; }
+  else         { dw = cw; dh = cw / va; }
+  return { x:(cw-dw)/2, y:(ch-dh)/2, sx:dw/vw, sy:dh/vh };
+}
+
+function drawCorners(x, y, w, h, len, color) {
+  ctx.strokeStyle = color;
+  ctx.lineWidth   = 3.5;
+  ctx.lineCap     = 'round';
+  ctx.beginPath();
+  ctx.moveTo(x, y+len);     ctx.lineTo(x, y);     ctx.lineTo(x+len, y);
+  ctx.moveTo(x+w-len, y);   ctx.lineTo(x+w, y);   ctx.lineTo(x+w, y+len);
+  ctx.moveTo(x+w, y+h-len); ctx.lineTo(x+w, y+h); ctx.lineTo(x+w-len, y+h);
+  ctx.moveTo(x+len, y+h);   ctx.lineTo(x, y+h);   ctx.lineTo(x, y+h-len);
+  ctx.stroke();
+}
+
+function drawPill(text, x, y, bg) {
+  ctx.font = 'bold 13px system-ui, sans-serif';
+  const tw = ctx.measureText(text).width + 14;
+  const th = 22;
+  ctx.fillStyle = bg;
+  roundRect(x, y - th, tw, th, 5);
+  ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.fillText(text, x + 7, y - 5);
+}
+
+function drawPillBottom(text, x, y, bg) {
+  ctx.font = 'bold 13px system-ui, sans-serif';
+  const tw = ctx.measureText(text).width + 14;
+  const th = 22;
+  ctx.fillStyle = bg;
+  roundRect(x, y + 2, tw, th, 5);
+  ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.fillText(text, x + 7, y + 17);
+}
+
+function roundRect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x+r, y);
+  ctx.lineTo(x+w-r, y); ctx.quadraticCurveTo(x+w, y, x+w, y+r);
+  ctx.lineTo(x+w, y+h-r); ctx.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
+  ctx.lineTo(x+r, y+h); ctx.quadraticCurveTo(x, y+h, x, y+h-r);
+  ctx.lineTo(x, y+r); ctx.quadraticCurveTo(x, y, x+r, y);
+  ctx.closePath();
+}
+
+// ── Hlavní smyčka ─────────────────────────────────────────────────────────
+async function detect() {
+  if (!running) return;
+  resizeCanvas();
+
+  if (video.readyState >= 2) {
+    const r    = getRect();
+    const opts = new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.45 });
+
+    const [faces] = await Promise.all([
+      faceapi.detectAllFaces(video, opts).withFaceExpressions(),
+      mpHands ? mpHands.send({ image: video }) : Promise.resolve()
+    ]);
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // ── OBLIČEJE ─────────────────────────────────────────────────────────
+    for (const det of faces) {
+      const { x, y, width: w, height: h } = det.detection.box;
+      const bx  = r.x + x * r.sx;
+      const by  = r.y + y * r.sy;
+      const bw  = w * r.sx;
+      const bh  = h * r.sy;
+      const pct = Math.round(det.detection.score * 100);
+
+      // glow
+      ctx.strokeStyle = 'rgba(255,59,59,0.18)';
+      ctx.lineWidth   = 10;
+      ctx.strokeRect(bx, by, bw, bh);
+
+      // rámeček
+      ctx.strokeStyle = '#ff3b3b';
+      ctx.lineWidth   = 2.5;
+      ctx.strokeRect(bx, by, bw, bh);
+
+      drawCorners(bx, by, bw, bh, Math.min(bw,bh) * 0.17, '#ff3b3b');
+
+      // label nahoře: "Obličej 94%"
+      drawPill('Obličej ' + pct + '%', bx, by, '#cc2020');
+
+      // Emoce — najdi dominantní
+      if (det.expressions) {
+        const expArr = Object.entries(det.expressions);
+        expArr.sort((a,b) => b[1] - a[1]);
+        const [topKey, topVal] = expArr[0];
+        if (topVal > 0.4) {
+          const em = EMOTION_MAP[topKey] || { cs: topKey, emoji: '' };
+          const emLabel = em.emoji + ' ' + em.cs + ' ' + Math.round(topVal*100) + '%';
+          drawPillBottom(emLabel, bx, by + bh, '#7a0000');
+        }
+      }
+    }
+
+    // ── RUCE ──────────────────────────────────────────────────────────────
+    for (const landmarks of lastHandResults) {
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      for (const pt of landmarks) {
+        const px = pt.x * video.videoWidth;
+        const py = pt.y * video.videoHeight;
+        if (px < minX) minX = px; if (px > maxX) maxX = px;
+        if (py < minY) minY = py; if (py > maxY) maxY = py;
+      }
+      const pad = 22;
+      const bx = r.x + (minX - pad) * r.sx;
+      const by = r.y + (minY - pad) * r.sy;
+      const bw = (maxX - minX + pad*2) * r.sx;
+      const bh = (maxY - minY + pad*2) * r.sy;
+
+      // glow
+      ctx.strokeStyle = 'rgba(0,229,160,0.15)';
+      ctx.lineWidth   = 10;
+      ctx.strokeRect(bx, by, bw, bh);
+
+      // rámeček
+      ctx.strokeStyle = '#00e5a0';
+      ctx.lineWidth   = 2.5;
+      ctx.strokeRect(bx, by, bw, bh);
+
+      drawCorners(bx, by, bw, bh, Math.min(bw,bh) * 0.17, '#00e5a0');
+
+      // gesto + počet prstů
+      const gesture = recognizeGesture(landmarks);
+      const fingers = countFingers(landmarks);
+      drawPill(gesture.emoji + ' ' + gesture.name, bx, by, '#007a55');
+      drawPillBottom('Prsty: ' + fingers, bx, by + bh, '#005540');
+
+      // kostra
+      const conn = [
+        [0,1],[1,2],[2,3],[3,4],
+        [0,5],[5,6],[6,7],[7,8],
+        [5,9],[9,10],[10,11],[11,12],
+        [9,13],[13,14],[14,15],[15,16],
+        [13,17],[17,18],[18,19],[19,20],
+        [0,17]
+      ];
+      ctx.strokeStyle = 'rgba(0,229,160,0.45)';
+      ctx.lineWidth   = 1.5;
+      ctx.beginPath();
+      for (const [a,b] of conn) {
+        ctx.moveTo(r.x + landmarks[a].x * video.videoWidth  * r.sx,
+                   r.y + landmarks[a].y * video.videoHeight * r.sy);
+        ctx.lineTo(r.x + landmarks[b].x * video.videoWidth  * r.sx,
+                   r.y + landmarks[b].y * video.videoHeight * r.sy);
+      }
+      ctx.stroke();
+
+      // klouby — různé velikosti pro tip vs ostatní
+      for (let i = 0; i < landmarks.length; i++) {
+        const pt = landmarks[i];
+        const isTip = [4,8,12,16,20].includes(i);
+        ctx.fillStyle = isTip ? '#fff' : '#00e5a0';
+        ctx.beginPath();
+        ctx.arc(r.x + pt.x * video.videoWidth  * r.sx,
+                r.y + pt.y * video.videoHeight * r.sy,
+                isTip ? 4 : 2.5, 0, Math.PI*2);
+        ctx.fill();
+      }
+    }
+
+    // ── FPS ───────────────────────────────────────────────────────────────
+    frameCount++;
+    const now = performance.now();
+    if (now - lastTime >= 1000) {
+      fpsLabel.textContent = frameCount + ' fps';
+      frameCount = 0;
+      lastTime   = now;
+    }
+
+    // ── Status ────────────────────────────────────────────────────────────
+    const f = faces.length, hc = lastHandResults.length;
+    const parts = [];
+    if (f) parts.push(f === 1 ? '1 obličej' : f + ' obličeje');
+    if (hc) parts.push(hc === 1 ? '1 ruka' : hc + ' ruce');
+    statusEl.textContent = parts.length ? parts.join(' · ') : 'Hledám...';
+  }
+
+  requestAnimationFrame(detect);
+}
+
+startBtn.addEventListener('click', startCamera);
+camToggle.addEventListener('click', () => {
+  facingMode = facingMode === 'user' ? 'environment' : 'user';
+  startCamera();
+});
+window.addEventListener('resize', resizeCanvas);
+
+loadModels();
 </script>
 </body>
 </html>
