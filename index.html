@@ -6,11 +6,33 @@
 <title>AI Kamera</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
-body {
+html, body {
   background:#0a0a0a; color:#fff;
   font-family:system-ui,sans-serif;
-  height:100dvh; display:flex; flex-direction:column; overflow:hidden;
+  width:100%; height:100%;
+  overflow:hidden;
+  /* Zabrání rotaci obsahu prohlížečem */
 }
+body {
+  display:flex; flex-direction:column;
+  height:100dvh;
+}
+
+/* Landscape optimalizace */
+@media (orientation: landscape) {
+  #header { padding:4px 16px 3px; }
+  #header h1 { font-size:13px; }
+  #status { font-size:10px; margin-top:1px; }
+  #legend { bottom:10px; left:10px; gap:2px; }
+  .leg { font-size:9px; }
+  #camToggle { width:40px; height:40px; font-size:18px; bottom:10px; right:10px; }
+  #photoBtn { width:50px; height:50px; font-size:22px; bottom:10px; }
+  #fpsLabel { top:5px; right:8px; }
+  #statsPanel { top:6px; left:8px; padding:8px 10px; min-width:170px; }
+  .stat-label { font-size:10px; }
+  .stat-value { font-size:11px; }
+}
+
 #netBanner {
   width:100%; padding:6px 16px; text-align:center;
   font-size:11px; font-weight:600; flex-shrink:0; display:none;
@@ -21,13 +43,16 @@ body {
 #header h1 { font-size:15px; font-weight:600; }
 #status { font-size:11px; color:#888; margin-top:2px; min-height:15px; }
 #container { position:relative; width:100%; flex:1; overflow:hidden; }
+
+/* Video — CSS zrcadlení pro selfie kameru */
 #video {
   position:absolute; width:100%; height:100%;
   object-fit:cover; transform:scaleX(-1);
 }
+/* Canvas — BEZ CSS transformace! Zrcadlení řešíme v JS */
 #canvas {
   position:absolute; width:100%; height:100%;
-  transform:scaleX(-1); z-index:2;
+  z-index:2;
 }
 
 /* Stats panel */
@@ -495,46 +520,58 @@ function maybeResize() {
 }
 function getR() {
   const vw=video.videoWidth,vh=video.videoHeight,cw=canvas.width,ch=canvas.height;
-  if(!vw||!vh) return{x:0,y:0,sx:1,sy:1};
+  if(!vw||!vh) return{x:0,y:0,sx:1,sy:1,cw};
   const va=vw/vh,ca=cw/ch;
   let dw,dh;
   if(va>ca){dh=ch;dw=ch*va;}else{dw=cw;dh=cw/va;}
-  return{x:(cw-dw)/2,y:(ch-dh)/2,sx:dw/vw,sy:dh/vh};
+  return{x:(cw-dw)/2,y:(ch-dh)/2,sx:dw/vw,sy:dh/vh,dw,cw};
 }
-function corners(x,y,w,h,l,col){
+
+// Převod video X → canvas X (s zrcadlením, protože video je CSS flipped)
+function vx(x, r){ return r.cw - (r.x + x * r.sx); }
+function vy(y, r){ return r.y + y * r.sy; }
+
+function corners(bx,by,bw,bh,l,col){
   ctx.strokeStyle=col;ctx.lineWidth=3.5;ctx.lineCap='round';
   ctx.beginPath();
-  ctx.moveTo(x,y+l);ctx.lineTo(x,y);ctx.lineTo(x+l,y);
-  ctx.moveTo(x+w-l,y);ctx.lineTo(x+w,y);ctx.lineTo(x+w,y+l);
-  ctx.moveTo(x+w,y+h-l);ctx.lineTo(x+w,y+h);ctx.lineTo(x+w-l,y+h);
-  ctx.moveTo(x+l,y+h);ctx.lineTo(x,y+h);ctx.lineTo(x,y+h-l);
+  // Roh vlevo nahoře
+  ctx.moveTo(bx,by+l);ctx.lineTo(bx,by);ctx.lineTo(bx+l,by);
+  // Roh vpravo nahoře
+  ctx.moveTo(bx+bw-l,by);ctx.lineTo(bx+bw,by);ctx.lineTo(bx+bw,by+l);
+  // Roh vpravo dole
+  ctx.moveTo(bx+bw,by+bh-l);ctx.lineTo(bx+bw,by+bh);ctx.lineTo(bx+bw-l,by+bh);
+  // Roh vlevo dole
+  ctx.moveTo(bx+l,by+bh);ctx.lineTo(bx,by+bh);ctx.lineTo(bx,by+bh-l);
   ctx.stroke();
 }
-function pill(txt,x,y,bg){
+
+function pill(txt,bx,by,bg){
   ctx.font='bold 15px system-ui,sans-serif';
   const tw=ctx.measureText(txt).width+16;
-  const th=24;
-  // un-mirror pro text (canvas je CSS scaleX(-1))
-  ctx.save();
-  ctx.scale(-1,1);
   ctx.fillStyle=bg;
-  ctx.fillRect(-(x+tw),y-th,tw,th);
+  ctx.fillRect(bx,by-24,tw,22);
   ctx.fillStyle='#fff';
-  ctx.fillText(txt,-(x+tw)+8,y-6);
-  ctx.restore();
+  ctx.fillText(txt,bx+8,by-7);
 }
-function pillB(txt,x,y,bg){
+
+function pillB(txt,bx,by_bh,bg){
   ctx.font='bold 15px system-ui,sans-serif';
   const tw=ctx.measureText(txt).width+16;
-  const th=24;
-  ctx.save();
-  ctx.scale(-1,1);
   ctx.fillStyle=bg;
-  ctx.fillRect(-(x+tw),y+3,tw,th);
+  ctx.fillRect(bx,by_bh+3,tw,22);
   ctx.fillStyle='#fff';
-  ctx.fillText(txt,-(x+tw)+8,y+18);
-  ctx.restore();
+  ctx.fillText(txt,bx+8,by_bh+18);
 }
+
+function pillR(txt,bx_bw,by,bg,col){
+  ctx.font='bold 15px system-ui,sans-serif';
+  const tw=ctx.measureText(txt).width+16;
+  ctx.fillStyle=bg;
+  ctx.fillRect(bx_bw-tw,by-24,tw,22);
+  ctx.fillStyle=col||'#fff';
+  ctx.fillText(txt,bx_bw-tw+8,by-7);
+}
+
 function box(bx,by,bw,bh,col,glow){
   ctx.strokeStyle=glow;ctx.lineWidth=10;ctx.strokeRect(bx,by,bw,bh);
   ctx.strokeStyle=col;ctx.lineWidth=2.5;ctx.strokeRect(bx,by,bw,bh);
@@ -657,8 +694,9 @@ async function startCamera(){
   running=false; startBtn.style.display='none';
   statusEl.textContent='Spouštím kameru...';
   try{
+    // Nižší rozlišení = rychlejší zpracování na mobilu
     stream=await navigator.mediaDevices.getUserMedia({
-      video:{facingMode,width:{ideal:1280},height:{ideal:720}},audio:false
+      video:{facingMode,width:{ideal:960},height:{ideal:540}},audio:false
     });
     video.srcObject=stream;
     await new Promise(r=>{video.onloadedmetadata=r;});
@@ -667,63 +705,112 @@ async function startCamera(){
     legend.style.display='flex'; fpsLabel.style.display='block';
     statusEl.textContent='Hledám...';
     ageHistory=[]; cachedAnalysis=[]; running=true;
-    fastLoop(); analysisLoop();
+    drawLoop();      // 60fps — jen kreslení
+    faceLoop();      // každých 150ms — detekce obličeje
+    cocoLoop();      // každých 350ms — COCO objekty
+    handsLoop();     // každých 120ms — ruce
+    analysisLoop();  // každých 900ms — věk/emoce/pohlaví
   }catch(e){
     statusEl.textContent='Přístup ke kameře zamítnut';
     startBtn.style.display='block';
   }
 }
 
-// ── Rychlá smyčka ─────────────────────────────────────────────────────────
-async function fastLoop(){
+// ── 1. KRESLENÍ — 60fps, žádná AI ────────────────────────────────────────
+function drawLoop(){
   if(!running) return;
   maybeResize();
-  if(video.readyState>=2){
-    const opts=new faceapi.TinyFaceDetectorOptions({inputSize:320,scoreThreshold:.25});
-    try{ fastFaces=await faceapi.detectAllFaces(video,opts); }catch(e){ fastFaces=[]; }
-    if(mpHands) mpHands.send({image:video}).catch(()=>{});
-    draw();
-    frameCount++;
-    const now=performance.now();
-    if(now-lastTime>=1000){
-      fpsLabel.textContent=frameCount+' fps'; frameCount=0; lastTime=now;
-    }
-    const f=fastFaces.length, hc=lastHandResults.length;
-    const co=cocoResults.filter(o=>o.class!=='person');
-    const persons=cocoResults.filter(o=>o.class==='person').length;
-    const parts=[];
-    if(f)  parts.push(f===1?'1 obličej':f+' obličeje');
-    if(hc) parts.push(hc===1?'1 ruka':hc+' ruce');
-    if(persons) parts.push(persons===1?'1 osoba':persons+' osoby');
-    if(co.length) parts.push(co.length+' obj.');
-    statusEl.textContent=parts.length?parts.join(' · '):'Hledám...';
-    if(fastFaces.length===0) hideStats();
+  draw();
+  frameCount++;
+  const now=performance.now();
+  if(now-lastTime>=1000){
+    fpsLabel.textContent=frameCount+' fps'; frameCount=0; lastTime=now;
   }
-  requestAnimationFrame(fastLoop);
+  if(fastFaces.length===0) hideStats();
+  const f=fastFaces.length,hc=lastHandResults.length;
+  const persons=cocoResults.filter(o=>o.class==='person').length;
+  const others=cocoResults.filter(o=>o.class!=='person').length;
+  const parts=[];
+  if(f) parts.push(f===1?'1 obličej':f+' obličeje');
+  if(hc) parts.push(hc===1?'1 ruka':hc+' ruce');
+  if(persons) parts.push(persons===1?'1 osoba':persons+' osoby');
+  if(others) parts.push(others+' obj.');
+  statusEl.textContent=parts.length?parts.join(' · '):'Hledám...';
+  requestAnimationFrame(drawLoop);
 }
 
-// ── Pomalá smyčka — analýza ───────────────────────────────────────────────
+// ── 2. DETEKCE OBLIČEJE — každých 150ms ──────────────────────────────────
+let faceRunning=false;
+async function faceLoop(){
+  if(!running) return;
+  if(!faceRunning && video.readyState>=2){
+    faceRunning=true;
+    try{
+      const opts=new faceapi.TinyFaceDetectorOptions({inputSize:224,scoreThreshold:.25});
+      fastFaces=await faceapi.detectAllFaces(video,opts);
+    }catch(e){ fastFaces=[]; }
+    faceRunning=false;
+  }
+  setTimeout(()=>{if(running)faceLoop();},150);
+}
+
+// ── 3. COCO-SSD — každých 350ms ──────────────────────────────────────────
+// Pomocný canvas v nižším rozlišení pro rychlejší COCO inference
+const cocoCanvas=document.createElement('canvas');
+const cocoCtx=cocoCanvas.getContext('2d');
+let cocoRunning=false;
+
+async function cocoLoop(){
+  if(!running) return;
+  if(!cocoRunning && cocoModel && video.readyState>=2){
+    cocoRunning=true;
+    try{
+      // Zmenšit vstup na 640px — 2x rychlejší než 960px
+      cocoCanvas.width=640;
+      cocoCanvas.height=Math.round(640*(video.videoHeight/video.videoWidth));
+      cocoCtx.drawImage(video,0,0,cocoCanvas.width,cocoCanvas.height);
+      const raw=await cocoModel.detect(cocoCanvas,50,.25);
+      // Přeškálovat souřadnice zpět na původní video rozlišení
+      const sx=video.videoWidth/cocoCanvas.width;
+      const sy=video.videoHeight/cocoCanvas.height;
+      cocoResults=raw.map(o=>({
+        ...o,
+        bbox:[o.bbox[0]*sx, o.bbox[1]*sy, o.bbox[2]*sx, o.bbox[3]*sy]
+      }));
+    }catch(e){ cocoResults=[]; }
+    cocoRunning=false;
+  }
+  setTimeout(()=>{if(running)cocoLoop();},350);
+}
+
+// ── 4. RUCE — každých 120ms ───────────────────────────────────────────────
+let handsRunning=false;
+async function handsLoop(){
+  if(!running) return;
+  if(!handsRunning && mpHands && video.readyState>=2){
+    handsRunning=true;
+    try{ await mpHands.send({image:video}); }catch(e){}
+    handsRunning=false;
+  }
+  setTimeout(()=>{if(running)handsLoop();},120);
+}
+
+// ── 5. ANALÝZA — věk/emoce/pohlaví každých 900ms ─────────────────────────
 async function analysisLoop(){
   if(!running) return;
-  if(video.readyState>=2){
-    // Obličej + emoce + věk
-    if(fastFaces.length>0){
-      const opts=new faceapi.TinyFaceDetectorOptions({inputSize:416,scoreThreshold:.25});
-      try{
-        const res=await faceapi.detectAllFaces(video,opts).withFaceLandmarks().withFaceExpressions().withAgeAndGender();
-        if(res.length>0){
-          cachedAnalysis=res;
-          const best=res.reduce((a,b)=>a.detection.score>b.detection.score?a:b);
-          showStats(best);
-        }
-      }catch(e){}
-    }
-    // COCO — všechny objekty
-    if(cocoModel){
-      try{ cocoResults=await cocoModel.detect(video,60,.22); }catch(e){ cocoResults=[]; }
-    }
+  if(video.readyState>=2 && fastFaces.length>0){
+    try{
+      const opts=new faceapi.TinyFaceDetectorOptions({inputSize:320,scoreThreshold:.25});
+      const res=await faceapi.detectAllFaces(video,opts)
+        .withFaceLandmarks().withFaceExpressions().withAgeAndGender();
+      if(res.length>0){
+        cachedAnalysis=res;
+        const best=res.reduce((a,b)=>a.detection.score>b.detection.score?a:b);
+        showStats(best);
+      }
+    }catch(e){}
   }
-  setTimeout(()=>{if(running)analysisLoop();},500);
+  setTimeout(()=>{if(running)analysisLoop();},900);
 }
 
 // ── Kreslení ──────────────────────────────────────────────────────────────
@@ -731,18 +818,27 @@ function draw(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
   const r=getR();
 
-  // Obličeje
+  // Pomocná funkce — bbox video→canvas s zrcadlením X
+  function toBox(x,y,w,h){
+    const cbx = vx(x+w, r); // levý kraj (zrcadleno)
+    const cby = vy(y, r);
+    const cbw = w * r.sx;
+    const cbh = h * r.sy;
+    return [cbx, cby, cbw, cbh];
+  }
+
+  // Obličeje — červené
   for(let i=0;i<fastFaces.length;i++){
     const det=fastFaces[i];
     const {x,y,width:w,height:h}=det.box;
-    const bx=r.x+x*r.sx, by=r.y+y*r.sy, bw=w*r.sx, bh=h*r.sy;
+    const [bx,by,bw,bh]=toBox(x,y,w,h);
     box(bx,by,bw,bh,'#ff3b3b','rgba(255,59,59,.18)');
     const ca=cachedAnalysis[i];
     if(ca){
       const agRaw=Math.round(ca.age);
       const agSorted=[...ageHistory].sort((a,b)=>a-b);
       const agMid=Math.floor(agSorted.length/2);
-      const ag=agSorted.length?( agSorted.length%2?agSorted[agMid]:Math.round((agSorted[agMid-1]+agSorted[agMid])/2) ):agRaw;
+      const ag=agSorted.length?(agSorted.length%2?agSorted[agMid]:Math.round((agSorted[agMid-1]+agSorted[agMid])/2)):agRaw;
       const gn=ca.gender==='male'?'👨':'👩';
       pill(gn+' ~'+ag+'l '+Math.round(det.score*100)+'%',bx,by,'#bb1c1c');
       if(ca.expressions){
@@ -759,61 +855,51 @@ function draw(){
     const cat=COCO[obj.class];
     if(!cat) continue;
     const [ox,oy,ow,oh]=obj.bbox;
-    const bx=r.x+ox*r.sx, by=r.y+oy*r.sy, bw=ow*r.sx, bh=oh*r.sy;
+    const [bx,by,bw,bh]=toBox(ox,oy,ow,oh);
     const pct=Math.round(obj.score*100);
     box(bx,by,bw,bh,cat.color,cat.glow);
     if(obj.class==='person'){
       const act=activity(obj.bbox,cocoResults);
-      const [ox,oy,ow,oh]=obj.bbox;
       const cx=ox+ow/2, cy=oy+oh/2;
       const tracker=getOrCreateTracker(cx,cy,act.t);
       const dur=formatDuration(Date.now()-tracker.startTime);
-      const dist=estimateDistance(oh * r.sy); // výška v canvas pixelech
-      pill(act.e+' '+act.t+' '+pct+'%', bx, by, cat.color+'cc');
-      pillB('⏱ '+dur, bx, by+bh, 'rgba(0,0,0,0.75)');
-      if(dist){
-        // vzdálenost nad rámečkem vpravo
-        ctx.save();
-        ctx.scale(-1,1);
-        ctx.font='bold 15px system-ui,sans-serif';
-        const tw=ctx.measureText('📏 '+dist.text).width+16;
-        ctx.fillStyle='rgba(0,0,0,0.75)';
-        ctx.fillRect(-(bx+bw), by-26, tw, 24);
-        ctx.fillStyle=dist.color;
-        ctx.fillText('📏 '+dist.text, -(bx+bw)+8, by-8);
-        ctx.restore();
-      }
+      const dist=estimateDistance(oh*r.sy);
+      pill(act.e+' '+act.t+' '+pct+'%',bx,by,cat.color+'cc');
+      pillB('⏱ '+dur,bx,by+bh,'rgba(0,0,0,0.75)');
+      if(dist) pillR('📏 '+dist.text, bx+bw, by, 'rgba(0,0,0,0.75)', dist.color);
     }else{
       pill(cat.cs+' '+pct+'%',bx,by,cat.color+'cc');
     }
   }
 
-  // Ruce
+  // Ruce — zelené
   for(const lm of lastHandResults){
     let mnX=1e9,mnY=1e9,mxX=-1e9,mxY=-1e9;
     for(const p of lm){
       const px=p.x*video.videoWidth, py=p.y*video.videoHeight;
-      if(px<mnX)mnX=px;if(px>mxX)mxX=px;if(py<mnY)mnY=py;if(py>mxY)mxY=py;
+      if(px<mnX)mnX=px;if(px>mxX)mxX=px;
+      if(py<mnY)mnY=py;if(py>mxY)mxY=py;
     }
     const pad=20;
-    const bx=r.x+(mnX-pad)*r.sx, by=r.y+(mnY-pad)*r.sy;
-    const bw=(mxX-mnX+pad*2)*r.sx, bh=(mxY-mnY+pad*2)*r.sy;
+    const [bx,by,bw,bh]=toBox(mnX-pad,mnY-pad,(mxX-mnX+pad*2),(mxY-mnY+pad*2));
     box(bx,by,bw,bh,'#00e5a0','rgba(0,229,160,.15)');
-    const g=gesture(lm), f=countFingers(lm);
+    const g=gesture(lm),f=countFingers(lm);
     pill(g.e+' '+g.n,bx,by,'#007a55');
     pillB('Prsty: '+f,bx,by+bh,'#005540');
-    // kostra
+    // Kostra
     const conn=[[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],[13,17],[17,18],[18,19],[19,20],[0,17]];
     ctx.strokeStyle='rgba(0,229,160,.45)';ctx.lineWidth=1.5;ctx.beginPath();
     for(const[a,b]of conn){
-      ctx.moveTo(r.x+lm[a].x*video.videoWidth*r.sx,r.y+lm[a].y*video.videoHeight*r.sy);
-      ctx.lineTo(r.x+lm[b].x*video.videoWidth*r.sx,r.y+lm[b].y*video.videoHeight*r.sy);
+      ctx.moveTo(vx(lm[a].x*video.videoWidth,r),vy(lm[a].y*video.videoHeight,r));
+      ctx.lineTo(vx(lm[b].x*video.videoWidth,r),vy(lm[b].y*video.videoHeight,r));
     }
     ctx.stroke();
     for(let i=0;i<lm.length;i++){
       const isTip=[4,8,12,16,20].includes(i);
       ctx.fillStyle=isTip?'#fff':'#00e5a0';
-      ctx.beginPath();ctx.arc(r.x+lm[i].x*video.videoWidth*r.sx,r.y+lm[i].y*video.videoHeight*r.sy,isTip?4:2.5,0,Math.PI*2);ctx.fill();
+      ctx.beginPath();
+      ctx.arc(vx(lm[i].x*video.videoWidth,r),vy(lm[i].y*video.videoHeight,r),isTip?4:2.5,0,Math.PI*2);
+      ctx.fill();
     }
   }
 }
