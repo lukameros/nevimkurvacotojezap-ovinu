@@ -20,7 +20,6 @@
     padding: 11px 16px 8px;
     text-align: center;
     flex-shrink: 0;
-    z-index: 10;
   }
   #header h1 { font-size: 15px; font-weight: 600; }
   #status { font-size: 11px; color: #888; margin-top: 2px; min-height: 15px; }
@@ -29,34 +28,29 @@
     width: 100%;
     flex: 1;
     overflow: hidden;
-    background: #111;
   }
-  /* Video zrcadlíme přes CSS */
+  /* Obě vrstvy zrcadlené stejně — souřadnice sedí 1:1 */
   #video {
     position: absolute;
     width: 100%; height: 100%;
     object-fit: cover;
     transform: scaleX(-1);
   }
-  /* Canvas NENÍ zrcadlený — kreslíme souřadnice sami správně */
   #canvas {
     position: absolute;
     width: 100%; height: 100%;
+    transform: scaleX(-1);
   }
   #startBtn {
     position: absolute;
     z-index: 20;
     top: 50%; left: 50%;
     transform: translate(-50%, -50%);
-    background: #fff;
-    color: #000;
-    border: none;
-    border-radius: 50px;
+    background: #fff; color: #000;
+    border: none; border-radius: 50px;
     padding: 14px 36px;
-    font-size: 16px;
-    font-weight: 600;
-    cursor: pointer;
-    display: none;
+    font-size: 16px; font-weight: 600;
+    cursor: pointer; display: none;
   }
   #camToggle {
     position: absolute;
@@ -66,63 +60,35 @@
     border: 1px solid rgba(255,255,255,0.25);
     border-radius: 50%;
     width: 48px; height: 48px;
-    font-size: 22px;
-    cursor: pointer;
-    display: none;
-    align-items: center;
-    justify-content: center;
-    color: #fff;
+    font-size: 22px; cursor: pointer;
+    display: none; align-items: center;
+    justify-content: center; color: #fff;
   }
   #legend {
-    position: absolute;
-    bottom: 20px; left: 14px;
-    z-index: 20;
-    display: none;
-    flex-direction: column;
-    gap: 5px;
+    position: absolute; bottom: 20px; left: 14px;
+    z-index: 20; display: none; flex-direction: column; gap: 5px;
   }
   .leg { display: flex; align-items: center; gap: 7px; font-size: 11px; color: rgba(255,255,255,0.75); }
   .leg-dot { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
   #fpsLabel {
-    position: absolute;
-    top: 8px; right: 10px;
-    z-index: 20;
-    font-size: 10px;
-    color: rgba(255,255,255,0.35);
-    font-family: monospace;
-    display: none;
+    position: absolute; top: 8px; right: 10px; z-index: 20;
+    font-size: 10px; color: rgba(255,255,255,0.35); font-family: monospace; display: none;
   }
   #loader {
-    position: absolute;
-    z-index: 30;
-    top: 50%; left: 50%;
-    transform: translate(-50%, -50%);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 12px;
+    position: absolute; z-index: 30;
+    top: 50%; left: 50%; transform: translate(-50%, -50%);
+    display: flex; flex-direction: column; align-items: center; gap: 12px;
   }
   .spinner {
     width: 36px; height: 36px;
     border: 3px solid rgba(255,255,255,0.12);
-    border-top-color: #fff;
-    border-radius: 50%;
+    border-top-color: #fff; border-radius: 50%;
     animation: spin 0.8s linear infinite;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
   .spinner-text { font-size: 12px; color: #777; text-align: center; max-width: 220px; }
   #progressBar { width: 180px; height: 3px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden; }
   #progressFill { height: 100%; background: #fff; border-radius: 2px; width: 0%; transition: width 0.4s ease; }
-  #debugInfo {
-    position: absolute;
-    top: 8px; left: 10px;
-    z-index: 20;
-    font-size: 10px;
-    color: rgba(255,200,0,0.6);
-    font-family: monospace;
-    display: none;
-    pointer-events: none;
-  }
 </style>
 </head>
 <body>
@@ -151,7 +117,6 @@
   </div>
 
   <div id="fpsLabel">0 fps</div>
-  <div id="debugInfo"></div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/dist/face-api.js"></script>
@@ -169,7 +134,6 @@ const legend     = document.getElementById('legend');
 const loader     = document.getElementById('loader');
 const loaderText = document.getElementById('loaderText');
 const progFill   = document.getElementById('progressFill');
-const debugEl    = document.getElementById('debugInfo');
 
 const FACE_MODEL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/model';
 
@@ -180,7 +144,7 @@ let mpHands         = null;
 let lastHandResults = [];
 let lastTime        = 0, frameCount = 0;
 
-// ── Emoce ──────────────────────────────────────────────────────────────────
+// ── Emoce ─────────────────────────────────────────────────────────────────
 const EMOTION_MAP = {
   happy:     { cs: 'Šťastný',    emoji: '😊' },
   sad:       { cs: 'Smutný',     emoji: '😢' },
@@ -191,35 +155,27 @@ const EMOTION_MAP = {
   neutral:   { cs: 'Neutrální',  emoji: '😐' }
 };
 
-// ── Gesta ──────────────────────────────────────────────────────────────────
+// ── Gesta ─────────────────────────────────────────────────────────────────
 function getFingerStates(lm) {
   const tips = [4, 8, 12, 16, 20];
   const pips = [3, 6, 10, 14, 18];
   const ext  = [];
-  // Palec: porovnej x s předchozím kloubem (zrcadlená kamera)
   ext.push(lm[4].x < lm[3].x);
-  for (let i = 1; i < 5; i++) {
-    ext.push(lm[tips[i]].y < lm[pips[i]].y);
-  }
+  for (let i = 1; i < 5; i++) ext.push(lm[tips[i]].y < lm[pips[i]].y);
   return ext;
 }
-
 function recognizeGesture(lm) {
   const [thumb, index, middle, ring, pinky] = getFingerStates(lm);
   const count = [thumb,index,middle,ring,pinky].filter(Boolean).length;
-  if (count === 0)                                    return { emoji: '✊', name: 'Pěst' };
-  if (thumb && !index && !middle && !ring && !pinky)  return { emoji: '👍', name: 'Palec nahoru' };
-  if (!thumb && index && !middle && !ring && pinky)   return { emoji: '🤘', name: 'Rock' };
-  if (!thumb && index && middle && !ring && !pinky)   return { emoji: '✌️',  name: 'Mír' };
-  if (!thumb && index && !middle && !ring && !pinky)  return { emoji: '👆', name: 'Pointing' };
-  if (thumb && index && middle && ring && pinky)      return { emoji: '🖐', name: 'Otevřená ruka' };
-  if (!thumb && index && middle && ring && pinky)     return { emoji: '🖐', name: '4 prsty' };
+  if (count === 0)                                   return { emoji: '✊', name: 'Pěst' };
+  if (thumb && !index && !middle && !ring && !pinky) return { emoji: '👍', name: 'Palec nahoru' };
+  if (!thumb && index && !middle && !ring && pinky)  return { emoji: '🤘', name: 'Rock' };
+  if (!thumb && index && middle && !ring && !pinky)  return { emoji: '✌️',  name: 'Mír' };
+  if (!thumb && index && !middle && !ring && !pinky) return { emoji: '👆', name: 'Pointing' };
+  if (thumb && index && middle && ring && pinky)     return { emoji: '🖐', name: 'Otevřená ruka' };
   return { emoji: '✋', name: count + ' prstů' };
 }
-
-function countFingers(lm) {
-  return getFingerStates(lm).filter(Boolean).length;
-}
+function countFingers(lm) { return getFingerStates(lm).filter(Boolean).length; }
 
 // ── MediaPipe Hands ────────────────────────────────────────────────────────
 function initMediaPipeHands() {
@@ -241,11 +197,11 @@ async function loadModels() {
     loaderText.textContent = 'Načítám detektor obličeje...';
     progFill.style.width = '10%';
     await faceapi.nets.tinyFaceDetector.loadFromUri(FACE_MODEL);
-    progFill.style.width = '35%';
+    progFill.style.width = '40%';
 
     loaderText.textContent = 'Načítám rozpoznávání emocí...';
     await faceapi.nets.faceExpressionNet.loadFromUri(FACE_MODEL);
-    progFill.style.width = '65%';
+    progFill.style.width = '70%';
 
     loaderText.textContent = 'Načítám detektor rukou...';
     mpHands = await initMediaPipeHands();
@@ -280,7 +236,6 @@ async function startCamera() {
     camToggle.style.display = 'flex';
     legend.style.display    = 'flex';
     fpsLabel.style.display  = 'block';
-    debugEl.style.display   = 'block';
     statusEl.textContent    = 'Hledám...';
     running = true;
     detect();
@@ -297,27 +252,16 @@ function resizeCanvas() {
   canvas.height = c.offsetHeight;
 }
 
-// Vrátí transformaci z video-pixel prostoru do canvas prostoru
-// POZOR: video je CSS-zrcadlené (scaleX(-1)), canvas není.
-// Proto musíme x souřadnice zrcadlit: canvasX = canvasW - (r.x + x*r.sx) - šířka
+// Převod z video pixelů na canvas pixely (object-fit: cover)
 function getRect() {
-  const vw = video.videoWidth,  vh = video.videoHeight;
-  const cw = canvas.width,      ch = canvas.height;
-  if (!vw || !vh) return { x:0, y:0, sx:1, sy:1, cw, mirror: false };
+  const vw = video.videoWidth, vh = video.videoHeight;
+  const cw = canvas.width,    ch = canvas.height;
+  if (!vw || !vh) return { x:0, y:0, sx:1, sy:1 };
   const va = vw/vh, ca = cw/ch;
   let dw, dh;
   if (va > ca) { dh = ch; dw = ch * va; }
   else         { dw = cw; dh = cw / va; }
-  return { x:(cw-dw)/2, y:(ch-dh)/2, sx:dw/vw, sy:dh/vh, dw, cw };
-}
-
-// Převede video souřadnici X na zrcadlenou canvas X
-function mirrorX(vx, r) {
-  return r.cw - (r.x + vx * r.sx);
-}
-
-function toCanvasY(vy, r) {
-  return r.y + vy * r.sy;
+  return { x:(cw-dw)/2, y:(ch-dh)/2, sx:dw/vw, sy:dh/vh };
 }
 
 function drawCorners(x, y, w, h, len, color) {
@@ -336,9 +280,7 @@ function drawPill(text, x, y, bg) {
   ctx.font = 'bold 13px system-ui, sans-serif';
   const tw = ctx.measureText(text).width + 14;
   ctx.fillStyle = bg;
-  ctx.beginPath();
-  ctx.roundRect(x, y - 22, tw, 20, 5);
-  ctx.fill();
+  ctx.fillRect(x, y - 22, tw, 20);
   ctx.fillStyle = '#fff';
   ctx.fillText(text, x + 7, y - 7);
 }
@@ -347,9 +289,7 @@ function drawPillBelow(text, x, y, bg) {
   ctx.font = 'bold 13px system-ui, sans-serif';
   const tw = ctx.measureText(text).width + 14;
   ctx.fillStyle = bg;
-  ctx.beginPath();
-  ctx.roundRect(x, y + 3, tw, 20, 5);
-  ctx.fill();
+  ctx.fillRect(x, y + 3, tw, 20);
   ctx.fillStyle = '#fff';
   ctx.fillText(text, x + 7, y + 17);
 }
@@ -361,7 +301,6 @@ async function detect() {
 
   if (video.readyState >= 2) {
     const r    = getRect();
-    // Nízký threshold = detekuje i při horším osvětlení
     const opts = new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.3 });
 
     const [faces] = await Promise.all([
@@ -371,26 +310,19 @@ async function detect() {
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Debug info
-    debugEl.textContent = `vid:${video.videoWidth}x${video.videoHeight} canvas:${canvas.width}x${canvas.height} faces:${faces.length} hands:${lastHandResults.length}`;
-
-    // ── OBLIČEJE ──────────────────────────────────────────────────────────
+    // ── OBLIČEJE — ČERVENÁ ─────────────────────────────────────────────
     for (const det of faces) {
       const { x, y, width: w, height: h } = det.detection.box;
-
-      // Zrcadlíme X souřadnice (video je CSS-flipped, canvas ne)
-      const bx = mirrorX(x + w, r);  // levý kraj zrcadleného boxu
-      const by = toCanvasY(y, r);
-      const bw = w * r.sx;
-      const bh = h * r.sy;
+      const bx  = r.x + x * r.sx;
+      const by  = r.y + y * r.sy;
+      const bw  = w * r.sx;
+      const bh  = h * r.sy;
       const pct = Math.round(det.detection.score * 100);
 
-      // Glow
       ctx.strokeStyle = 'rgba(255,59,59,0.2)';
       ctx.lineWidth   = 10;
       ctx.strokeRect(bx, by, bw, bh);
 
-      // Červený rámeček
       ctx.strokeStyle = '#ff3b3b';
       ctx.lineWidth   = 2.5;
       ctx.strokeRect(bx, by, bw, bh);
@@ -398,7 +330,6 @@ async function detect() {
       drawCorners(bx, by, bw, bh, Math.min(bw,bh)*0.17, '#ff3b3b');
       drawPill('Obličej ' + pct + '%', bx, by, '#cc2020');
 
-      // Emoce
       if (det.expressions) {
         const sorted = Object.entries(det.expressions).sort((a,b) => b[1]-a[1]);
         const [topKey, topVal] = sorted[0];
@@ -409,30 +340,25 @@ async function detect() {
       }
     }
 
-    // ── RUCE ──────────────────────────────────────────────────────────────
+    // ── RUCE — ZELENÁ ─────────────────────────────────────────────────
     for (const landmarks of lastHandResults) {
-      // Bounding box z landmarků (v normalizovaných souřadnicích 0-1)
       let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
       for (const pt of landmarks) {
-        if (pt.x < minX) minX = pt.x; if (pt.x > maxX) maxX = pt.x;
-        if (pt.y < minY) minY = pt.y; if (pt.y > maxY) maxY = pt.y;
+        const px = pt.x * video.videoWidth;
+        const py = pt.y * video.videoHeight;
+        if (px < minX) minX = px; if (px > maxX) maxX = px;
+        if (py < minY) minY = py; if (py > maxY) maxY = py;
       }
+      const pad = 20;
+      const bx = r.x + (minX - pad) * r.sx;
+      const by = r.y + (minY - pad) * r.sy;
+      const bw = (maxX - minX + pad*2) * r.sx;
+      const bh = (maxY - minY + pad*2) * r.sy;
 
-      const padX = 20 / video.videoWidth;
-      const padY = 20 / video.videoHeight;
-
-      // Zrcadlíme X (landmark x je 0..1, levá strana = minX)
-      const bx = mirrorX((maxX + padX) * video.videoWidth, r);
-      const by = toCanvasY((minY - padY) * video.videoHeight, r);
-      const bw = (maxX - minX + 2*padX) * video.videoWidth * r.sx;
-      const bh = (maxY - minY + 2*padY) * video.videoHeight * r.sy;
-
-      // Glow
       ctx.strokeStyle = 'rgba(0,229,160,0.15)';
       ctx.lineWidth   = 10;
       ctx.strokeRect(bx, by, bw, bh);
 
-      // Zelený rámeček
       ctx.strokeStyle = '#00e5a0';
       ctx.lineWidth   = 2.5;
       ctx.strokeRect(bx, by, bw, bh);
@@ -444,7 +370,7 @@ async function detect() {
       drawPill(gesture.emoji + ' ' + gesture.name, bx, by, '#007a55');
       drawPillBelow('Prsty: ' + fingers, bx, by+bh, '#005540');
 
-      // Kostra ruky
+      // Kostra
       const conn = [
         [0,1],[1,2],[2,3],[3,4],
         [0,5],[5,6],[6,7],[7,8],
@@ -457,35 +383,33 @@ async function detect() {
       ctx.lineWidth   = 1.5;
       ctx.beginPath();
       for (const [a,b] of conn) {
-        ctx.moveTo(mirrorX(landmarks[a].x * video.videoWidth, r),  toCanvasY(landmarks[a].y * video.videoHeight, r));
-        ctx.lineTo(mirrorX(landmarks[b].x * video.videoWidth, r),  toCanvasY(landmarks[b].y * video.videoHeight, r));
+        ctx.moveTo(r.x + landmarks[a].x * video.videoWidth  * r.sx, r.y + landmarks[a].y * video.videoHeight * r.sy);
+        ctx.lineTo(r.x + landmarks[b].x * video.videoWidth  * r.sx, r.y + landmarks[b].y * video.videoHeight * r.sy);
       }
       ctx.stroke();
 
-      // Klouby
       for (let i = 0; i < landmarks.length; i++) {
         const pt = landmarks[i];
         const isTip = [4,8,12,16,20].includes(i);
         ctx.fillStyle = isTip ? '#fff' : '#00e5a0';
         ctx.beginPath();
-        ctx.arc(mirrorX(pt.x * video.videoWidth, r), toCanvasY(pt.y * video.videoHeight, r), isTip ? 4 : 2.5, 0, Math.PI*2);
+        ctx.arc(r.x + pt.x * video.videoWidth * r.sx, r.y + pt.y * video.videoHeight * r.sy, isTip ? 4 : 2.5, 0, Math.PI*2);
         ctx.fill();
       }
     }
 
-    // ── FPS ───────────────────────────────────────────────────────────────
+    // FPS
     frameCount++;
     const now = performance.now();
     if (now - lastTime >= 1000) {
       fpsLabel.textContent = frameCount + ' fps';
-      frameCount = 0;
-      lastTime   = now;
+      frameCount = 0; lastTime = now;
     }
 
     const f = faces.length, hc = lastHandResults.length;
     const parts = [];
-    if (f) parts.push(f === 1 ? '1 obličej' : f + ' obličeje');
-    if (hc) parts.push(hc === 1 ? '1 ruka' : hc + ' ruce');
+    if (f)  parts.push(f  === 1 ? '1 obličej' : f  + ' obličeje');
+    if (hc) parts.push(hc === 1 ? '1 ruka'    : hc + ' ruce');
     statusEl.textContent = parts.length ? parts.join(' · ') : 'Hledám...';
   }
 
