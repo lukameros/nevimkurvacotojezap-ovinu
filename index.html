@@ -89,6 +89,33 @@ body {
   font-size:10px; color:rgba(255,255,255,0.3); font-family:monospace; display:none;
 }
 
+/* ── Update modal ─────────────────────────────────────────────────────── */
+#updateModal {
+  position:absolute; inset:0; z-index:100;
+  background:rgba(0,0,0,0.88); display:none;
+  align-items:center; justify-content:center;
+  backdrop-filter:blur(4px);
+}
+#updateModal.show { display:flex; }
+#updateBox {
+  background:#111; border:1px solid rgba(255,255,255,0.15);
+  border-radius:16px; padding:22px 20px; width:88%; max-width:340px;
+  max-height:80vh; overflow-y:auto;
+}
+#updateBox h2 { font-size:16px; font-weight:700; margin-bottom:3px; }
+#updateBox .ver { font-size:11px; color:#00e5a0; font-weight:700; margin-bottom:14px; display:block; letter-spacing:.5px; }
+#updateBox .section { font-size:10px; font-weight:600; color:rgba(255,255,255,0.35); letter-spacing:1px; text-transform:uppercase; margin:12px 0 5px; }
+#updateBox ul { list-style:none; padding:0; }
+#updateBox li { font-size:13px; color:rgba(255,255,255,0.8); padding:4px 0; border-bottom:1px solid rgba(255,255,255,0.06); }
+#updateBox li:last-child { border:none; }
+#updateBox li::before { content:'→ '; color:#00e5a0; }
+#updateClose {
+  width:100%; margin-top:16px; padding:13px;
+  background:#00e5a0; color:#000; border:none; border-radius:10px;
+  font-size:14px; font-weight:700; cursor:pointer; letter-spacing:.3px;
+}
+#updateClose:active { transform:scale(0.97); }
+
 /* Loader */
 #loader {
   position:absolute; z-index:30; top:50%; left:50%; transform:translate(-50%,-50%);
@@ -122,6 +149,40 @@ body {
     <div class="ebar-wrap">
       <div class="ebar-title">Emoce</div>
       <div id="ebars"></div>
+    </div>
+  </div>
+
+  <div id="updateModal">
+    <div id="updateBox">
+      <h2>&#127909; AI Kamera</h2>
+      <span class="ver">verze 0.7 — Co je nového</span>
+
+      <div class="section">&#128640; Nové funkce</div>
+      <ul>
+        <li>Odhad vzdálenosti osoby od kamery (📏)</li>
+        <li>Časovač aktivity — jak dlouho co osoba dělá (⏱)</li>
+        <li>Detekce 80+ objektů — zvířata, auta, nábytek, jídlo...</li>
+        <li>Foto tlačítko — uloží snímek s rámečky</li>
+        <li>Nová gesta ruky — srdíčko, OK, Spider-Man, zavolej</li>
+      </ul>
+
+      <div class="section">&#128295; Vylepšení</div>
+      <ul>
+        <li>Věk počítán mediánem z 30 měření — přesnější</li>
+        <li>COCO mobilenet_v2 — lepší detekce ležících postav</li>
+        <li>Potlačeny TF.js warningy v konzoli</li>
+        <li>Offline podpora — modely se cachují v prohlížeči</li>
+        <li>Popisky čitelné na mobilu — větší písmo</li>
+      </ul>
+
+      <div class="section">&#9881;&#65039; Technické</div>
+      <ul>
+        <li>Rychlá smyčka (rámečky) + pomalá (analýza 500ms)</li>
+        <li>face-api + COCO-SSD + MediaPipe Hands</li>
+        <li>100% offline po prvním načtení</li>
+      </ul>
+
+      <button id="updateClose">Rozumím, spustit kameru &#128247;</button>
     </div>
   </div>
 
@@ -315,7 +376,57 @@ function gesture(lm) {
 }
 function countFingers(lm){ return fingerStates(lm).filter(Boolean).length; }
 
-// ── Aktivita osoby ────────────────────────────────────────────────────────
+// ── Sledování aktivity osoby v čase ──────────────────────────────────────
+// Ukládáme aktivitu pro každou osobu podle pozice (approx tracking)
+const activityTrackers = []; // [{cx, cy, activity, startTime, lastSeen}]
+const TRACKER_TIMEOUT = 3000; // ms bez detekce = reset
+
+function getOrCreateTracker(cx, cy, actName) {
+  const now = Date.now();
+  // Odstraň staré trackery
+  for (let i = activityTrackers.length - 1; i >= 0; i--) {
+    if (now - activityTrackers[i].lastSeen > TRACKER_TIMEOUT)
+      activityTrackers.splice(i, 1);
+  }
+  // Najdi nejbližší existující tracker
+  let best = null, bestDist = Infinity;
+  for (const t of activityTrackers) {
+    const d = Math.hypot(cx - t.cx, cy - t.cy);
+    if (d < bestDist) { bestDist = d; best = t; }
+  }
+  // Pokud je dost blízko (stejná osoba), aktualizuj
+  if (best && bestDist < 120) {
+    best.cx = cx; best.cy = cy; best.lastSeen = now;
+    // Pokud se aktivita změnila, resetuj timer
+    if (best.activity !== actName) { best.activity = actName; best.startTime = now; }
+    return best;
+  }
+  // Nová osoba
+  const t = { cx, cy, activity: actName, startTime: now, lastSeen: now };
+  activityTrackers.push(t);
+  return t;
+}
+
+function formatDuration(ms) {
+  const s = Math.floor(ms / 1000);
+  if (s < 60) return s + 's';
+  const m = Math.floor(s / 60), rs = s % 60;
+  return m + 'm ' + (rs < 10 ? '0' : '') + rs + 's';
+}
+// ── Odhad vzdálenosti od kamery ───────────────────────────────────────────
+// Průměrná výška člověka ~170cm, typická ohnisková vzdálenost mobilní kamery ~700px
+const REAL_HEIGHT_CM = 170;
+const FOCAL_PX = 700;
+
+function estimateDistance(bboxH) {
+  if (!bboxH || bboxH < 1) return null;
+  const d = (REAL_HEIGHT_CM * FOCAL_PX) / bboxH;
+  if (d < 80)   return { text: Math.round(d) + ' cm',             color: '#ff4444' };
+  if (d < 300)  return { text: (Math.round(d/10)/10).toFixed(1) + ' m', color: '#ffd03c' };
+  if (d < 2000) return { text: (Math.round(d/10)/10).toFixed(1) + ' m', color: '#00e5a0' };
+  return         { text: '~' + Math.round(d/100) + '0 m',         color: '#94a3b8' };
+}
+
 function activity(bbox, all) {
   const [px,py,pw,ph]=bbox, cx=px+pw/2, cy=py+ph/2;
   const near=all.filter(o=>{
@@ -361,16 +472,29 @@ function corners(x,y,w,h,l,col){
   ctx.stroke();
 }
 function pill(txt,x,y,bg){
-  ctx.font='bold 12px system-ui,sans-serif';
-  const tw=ctx.measureText(txt).width+12;
-  ctx.fillStyle=bg;ctx.fillRect(x,y-20,tw,18);
-  ctx.fillStyle='#fff';ctx.fillText(txt,x+6,y-6);
+  ctx.font='bold 15px system-ui,sans-serif';
+  const tw=ctx.measureText(txt).width+16;
+  const th=24;
+  // un-mirror pro text (canvas je CSS scaleX(-1))
+  ctx.save();
+  ctx.scale(-1,1);
+  ctx.fillStyle=bg;
+  ctx.fillRect(-(x+tw),y-th,tw,th);
+  ctx.fillStyle='#fff';
+  ctx.fillText(txt,-(x+tw)+8,y-6);
+  ctx.restore();
 }
 function pillB(txt,x,y,bg){
-  ctx.font='bold 12px system-ui,sans-serif';
-  const tw=ctx.measureText(txt).width+12;
-  ctx.fillStyle=bg;ctx.fillRect(x,y+3,tw,18);
-  ctx.fillStyle='#fff';ctx.fillText(txt,x+6,y+16);
+  ctx.font='bold 15px system-ui,sans-serif';
+  const tw=ctx.measureText(txt).width+16;
+  const th=24;
+  ctx.save();
+  ctx.scale(-1,1);
+  ctx.fillStyle=bg;
+  ctx.fillRect(-(x+tw),y+3,tw,th);
+  ctx.fillStyle='#fff';
+  ctx.fillText(txt,-(x+tw)+8,y+18);
+  ctx.restore();
 }
 function box(bx,by,bw,bh,col,glow){
   ctx.strokeStyle=glow;ctx.lineWidth=10;ctx.strokeRect(bx,by,bw,bh);
@@ -380,18 +504,22 @@ function box(bx,by,bw,bh,col,glow){
 
 // ── Stats panel ───────────────────────────────────────────────────────────
 function showStats(d) {
-  const age=Math.round(d.age); ageHistory.push(age);
-  if(ageHistory.length>14) ageHistory.shift();
-  const avg=Math.round(ageHistory.reduce((a,b)=>a+b,0)/ageHistory.length);
-  document.getElementById('st-age').textContent=avg+' let';
+  const age=Math.round(d.age);
+  ageHistory.push(age);
+  if(ageHistory.length>30) ageHistory.shift();
+  // Medián ze všech hodnot — odfiltruje výkyvy
+  const sorted=[...ageHistory].sort((a,b)=>a-b);
+  const mid=Math.floor(sorted.length/2);
+  const median=sorted.length%2?sorted[mid]:Math.round((sorted[mid-1]+sorted[mid])/2);
+  document.getElementById('st-age').textContent=median+' let';
   document.getElementById('st-gender').textContent=(d.gender==='male'?'👨 Muž':'👩 Žena')+' ('+Math.round(d.genderProbability*100)+'%)';
   document.getElementById('st-conf').textContent=Math.round(d.detection.score*100)+'%';
-  const sorted=Object.entries(d.expressions).sort((a,b)=>b[1]-a[1]);
-  const [tk,tv]=sorted[0]; const em=EM[tk]||{cs:tk,e:'',c:'#fff'};
+  const expSorted=Object.entries(d.expressions).sort((a,b)=>b[1]-a[1]);
+  const [tk,tv]=expSorted[0]; const em=EM[tk]||{cs:tk,e:'',c:'#fff'};
   const stEmo=document.getElementById('st-emo');
   stEmo.textContent=em.e+' '+em.cs; stEmo.style.color=em.c;
   const eb=document.getElementById('ebars'); eb.innerHTML='';
-  sorted.slice(0,5).forEach(([k,v])=>{
+  expSorted.slice(0,5).forEach(([k,v])=>{
     const m=EM[k]||{cs:k,c:'#aaa'};
     eb.innerHTML+=`<div class="ebar-row"><span class="ebar-name">${m.cs}</span><div class="ebar-track"><div class="ebar-fill" style="width:${Math.round(v*100)}%;background:${m.c}"></div></div><span class="ebar-pct">${Math.round(v*100)}%</span></div>`;
   });
@@ -467,13 +595,14 @@ async function loadModels(){
     loaderText.textContent='Načítám landmarky...';
     await faceapi.nets.faceLandmark68Net.loadFromUri(modelUrl);   progFill.style.width='70%';
     loaderText.textContent='Načítám COCO detektor...';
-    cocoModel=await cocoSsd.load({base:'lite_mobilenet_v2'});      progFill.style.width='87%';
+    cocoModel=await cocoSsd.load({base:'mobilenet_v2'});      progFill.style.width='87%';
     loaderText.textContent='Načítám detektor rukou...';
     mpHands=await initHands();                                     progFill.style.width='100%';
     setTimeout(()=>{
       loader.style.display='none';
       statusEl.textContent='Modely připraveny ✓';
       startBtn.style.display='block';
+      showUpdateModal();
     },300);
   }catch(e){
     loader.style.display='none';
@@ -511,7 +640,7 @@ async function fastLoop(){
   if(!running) return;
   maybeResize();
   if(video.readyState>=2){
-    const opts=new faceapi.TinyFaceDetectorOptions({inputSize:224,scoreThreshold:.3});
+    const opts=new faceapi.TinyFaceDetectorOptions({inputSize:320,scoreThreshold:.25});
     try{ fastFaces=await faceapi.detectAllFaces(video,opts); }catch(e){ fastFaces=[]; }
     if(mpHands) mpHands.send({image:video}).catch(()=>{});
     draw();
@@ -540,7 +669,7 @@ async function analysisLoop(){
   if(video.readyState>=2){
     // Obličej + emoce + věk
     if(fastFaces.length>0){
-      const opts=new faceapi.TinyFaceDetectorOptions({inputSize:320,scoreThreshold:.3});
+      const opts=new faceapi.TinyFaceDetectorOptions({inputSize:416,scoreThreshold:.25});
       try{
         const res=await faceapi.detectAllFaces(video,opts).withFaceLandmarks().withFaceExpressions().withAgeAndGender();
         if(res.length>0){
@@ -552,7 +681,7 @@ async function analysisLoop(){
     }
     // COCO — všechny objekty
     if(cocoModel){
-      try{ cocoResults=await cocoModel.detect(video,40,.28); }catch(e){ cocoResults=[]; }
+      try{ cocoResults=await cocoModel.detect(video,60,.22); }catch(e){ cocoResults=[]; }
     }
   }
   setTimeout(()=>{if(running)analysisLoop();},500);
@@ -571,7 +700,11 @@ function draw(){
     box(bx,by,bw,bh,'#ff3b3b','rgba(255,59,59,.18)');
     const ca=cachedAnalysis[i];
     if(ca){
-      const ag=Math.round(ca.age), gn=ca.gender==='male'?'👨':'👩';
+      const agRaw=Math.round(ca.age);
+      const agSorted=[...ageHistory].sort((a,b)=>a-b);
+      const agMid=Math.floor(agSorted.length/2);
+      const ag=agSorted.length?( agSorted.length%2?agSorted[agMid]:Math.round((agSorted[agMid-1]+agSorted[agMid])/2) ):agRaw;
+      const gn=ca.gender==='male'?'👨':'👩';
       pill(gn+' ~'+ag+'l '+Math.round(det.score*100)+'%',bx,by,'#bb1c1c');
       if(ca.expressions){
         const s=Object.entries(ca.expressions).sort((a,b)=>b[1]-a[1]);
@@ -592,7 +725,25 @@ function draw(){
     box(bx,by,bw,bh,cat.color,cat.glow);
     if(obj.class==='person'){
       const act=activity(obj.bbox,cocoResults);
-      pill(act.e+' '+act.t+' '+pct+'%',bx,by,cat.color+'cc');
+      const [ox,oy,ow,oh]=obj.bbox;
+      const cx=ox+ow/2, cy=oy+oh/2;
+      const tracker=getOrCreateTracker(cx,cy,act.t);
+      const dur=formatDuration(Date.now()-tracker.startTime);
+      const dist=estimateDistance(oh * r.sy); // výška v canvas pixelech
+      pill(act.e+' '+act.t+' '+pct+'%', bx, by, cat.color+'cc');
+      pillB('⏱ '+dur, bx, by+bh, 'rgba(0,0,0,0.75)');
+      if(dist){
+        // vzdálenost nad rámečkem vpravo
+        ctx.save();
+        ctx.scale(-1,1);
+        ctx.font='bold 15px system-ui,sans-serif';
+        const tw=ctx.measureText('📏 '+dist.text).width+16;
+        ctx.fillStyle='rgba(0,0,0,0.75)';
+        ctx.fillRect(-(bx+bw), by-26, tw, 24);
+        ctx.fillStyle=dist.color;
+        ctx.fillText('📏 '+dist.text, -(bx+bw)+8, by-8);
+        ctx.restore();
+      }
     }else{
       pill(cat.cs+' '+pct+'%',bx,by,cat.color+'cc');
     }
@@ -633,6 +784,21 @@ startBtn.addEventListener('click', startCamera);
 camToggle.addEventListener('click',()=>{ facingMode=facingMode==='user'?'environment':'user'; ageHistory=[];cachedAnalysis=[];startCamera(); });
 photoBtn.addEventListener('click', takePhoto);
 window.addEventListener('resize',()=>{canvasW=0;});
+
+const updateModal = document.getElementById('updateModal');
+const updateClose = document.getElementById('updateClose');
+const APP_VERSION = '0.7';
+
+function showUpdateModal() {
+  const seen = localStorage.getItem('ai_kamera_ver');
+  if (seen !== APP_VERSION) {
+    updateModal.classList.add('show');
+  }
+}
+updateClose.addEventListener('click', () => {
+  updateModal.classList.remove('show');
+  try { localStorage.setItem('ai_kamera_ver', APP_VERSION); } catch(e) {}
+});
 
 function updateNet(){
   if(navigator.onLine){
