@@ -17,7 +17,7 @@
   }
   #header {
     width: 100%;
-    padding: 11px 16px 8px;
+    padding: 10px 16px 7px;
     text-align: center;
     flex-shrink: 0;
   }
@@ -29,7 +29,6 @@
     flex: 1;
     overflow: hidden;
   }
-  /* Obě vrstvy zrcadlené stejně — souřadnice sedí 1:1 */
   #video {
     position: absolute;
     width: 100%; height: 100%;
@@ -41,49 +40,138 @@
     width: 100%; height: 100%;
     transform: scaleX(-1);
   }
-  #startBtn {
+
+  /* ── Stats tabulka ─────────────────────────────────────────────────── */
+  #statsPanel {
     position: absolute;
-    z-index: 20;
-    top: 50%; left: 50%;
-    transform: translate(-50%, -50%);
-    background: #fff; color: #000;
-    border: none; border-radius: 50px;
-    padding: 14px 36px;
-    font-size: 16px; font-weight: 600;
-    cursor: pointer; display: none;
+    top: 12px; left: 12px;
+    z-index: 30;
+    background: rgba(0,0,0,0.72);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 12px;
+    padding: 12px 14px;
+    min-width: 200px;
+    backdrop-filter: blur(8px);
+    display: none;
+    opacity: 0;
+    transform: translateY(-6px);
+    transition: opacity 0.25s ease, transform 0.25s ease;
+    pointer-events: none;
+  }
+  #statsPanel.visible {
+    display: block;
+    opacity: 1;
+    transform: translateY(0);
+  }
+  /* Pro plynulý display:none přechod */
+  #statsPanel.hiding {
+    display: block;
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  .stats-title {
+    font-size: 10px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.4);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 9px;
+    padding-bottom: 7px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+  .stat-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 4px 0;
+  }
+  .stat-label {
+    font-size: 11px;
+    color: rgba(255,255,255,0.45);
+    flex-shrink: 0;
+  }
+  .stat-value {
+    font-size: 12px;
+    font-weight: 600;
+    color: #fff;
+    text-align: right;
+  }
+  .stat-value.highlight { color: #ff3b3b; }
+  .stat-value.green { color: #00e5a0; }
+  .stat-value.yellow { color: #ffd060; }
+
+  /* Emotion bar */
+  .emotion-bar-wrap {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+  }
+  .emotion-bar-label {
+    font-size: 10px;
+    color: rgba(255,255,255,0.4);
+    margin-bottom: 5px;
+    font-weight: 600;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+  }
+  .ebar-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 3px;
+  }
+  .ebar-name { font-size: 10px; color: rgba(255,255,255,0.5); width: 72px; flex-shrink: 0; }
+  .ebar-track { flex: 1; height: 4px; background: rgba(255,255,255,0.08); border-radius: 2px; overflow: hidden; }
+  .ebar-fill { height: 100%; border-radius: 2px; background: #ff3b3b; transition: width 0.3s ease; }
+  .ebar-pct { font-size: 9px; color: rgba(255,255,255,0.4); width: 28px; text-align: right; }
+
+  /* Brýle badge */
+  .glasses-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: rgba(255,208,96,0.15);
+    border: 1px solid rgba(255,208,96,0.3);
+    border-radius: 6px;
+    padding: 2px 8px;
+    font-size: 11px;
+    color: #ffd060;
+    margin-top: 6px;
+    font-weight: 600;
+  }
+
+  /* ── UI ─────────────────────────────────────────────────────────────── */
+  #startBtn {
+    position: absolute; z-index: 20;
+    top: 50%; left: 50%; transform: translate(-50%, -50%);
+    background: #fff; color: #000; border: none; border-radius: 50px;
+    padding: 14px 36px; font-size: 16px; font-weight: 600; cursor: pointer; display: none;
   }
   #camToggle {
-    position: absolute;
-    bottom: 20px; right: 16px;
-    z-index: 20;
-    background: rgba(255,255,255,0.13);
-    border: 1px solid rgba(255,255,255,0.25);
-    border-radius: 50%;
-    width: 48px; height: 48px;
-    font-size: 22px; cursor: pointer;
-    display: none; align-items: center;
-    justify-content: center; color: #fff;
+    position: absolute; bottom: 20px; right: 16px; z-index: 20;
+    background: rgba(255,255,255,0.13); border: 1px solid rgba(255,255,255,0.25);
+    border-radius: 50%; width: 48px; height: 48px; font-size: 22px;
+    cursor: pointer; display: none; align-items: center; justify-content: center; color: #fff;
   }
   #legend {
-    position: absolute; bottom: 20px; left: 14px;
-    z-index: 20; display: none; flex-direction: column; gap: 5px;
+    position: absolute; bottom: 20px; left: 14px; z-index: 20;
+    display: none; flex-direction: column; gap: 5px;
   }
-  .leg { display: flex; align-items: center; gap: 7px; font-size: 11px; color: rgba(255,255,255,0.75); }
-  .leg-dot { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+  .leg { display: flex; align-items: center; gap: 7px; font-size: 11px; color: rgba(255,255,255,0.65); }
+  .leg-dot { width: 11px; height: 11px; border-radius: 3px; flex-shrink: 0; }
   #fpsLabel {
-    position: absolute; top: 8px; right: 10px; z-index: 20;
-    font-size: 10px; color: rgba(255,255,255,0.35); font-family: monospace; display: none;
+    position: absolute; bottom: 20px; right: 72px; z-index: 20;
+    font-size: 10px; color: rgba(255,255,255,0.3); font-family: monospace; display: none;
   }
   #loader {
-    position: absolute; z-index: 30;
-    top: 50%; left: 50%; transform: translate(-50%, -50%);
+    position: absolute; z-index: 30; top: 50%; left: 50%; transform: translate(-50%, -50%);
     display: flex; flex-direction: column; align-items: center; gap: 12px;
   }
   .spinner {
     width: 36px; height: 36px;
-    border: 3px solid rgba(255,255,255,0.12);
-    border-top-color: #fff; border-radius: 50%;
-    animation: spin 0.8s linear infinite;
+    border: 3px solid rgba(255,255,255,0.12); border-top-color: #fff;
+    border-radius: 50%; animation: spin 0.8s linear infinite;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
   .spinner-text { font-size: 12px; color: #777; text-align: center; max-width: 220px; }
@@ -102,6 +190,35 @@
   <video id="video" playsinline autoplay muted></video>
   <canvas id="canvas"></canvas>
 
+  <!-- Stats tabulka -->
+  <div id="statsPanel">
+    <div class="stats-title">&#128101; Analýza obličeje</div>
+    <div class="stat-row">
+      <span class="stat-label">Věk (odhad)</span>
+      <span class="stat-value highlight" id="st-age">—</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">Pohlaví</span>
+      <span class="stat-value" id="st-gender">—</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">Jistota detekce</span>
+      <span class="stat-value green" id="st-conf">—</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">Dominantní emoce</span>
+      <span class="stat-value yellow" id="st-emo">—</span>
+    </div>
+    <div id="st-glasses-wrap" style="display:none">
+      <div class="glasses-badge">&#128083; Pravděpodobně brýle</div>
+    </div>
+
+    <div class="emotion-bar-wrap">
+      <div class="emotion-bar-label">Emoce</div>
+      <div id="ebars"></div>
+    </div>
+  </div>
+
   <div id="loader">
     <div class="spinner"></div>
     <div id="progressBar"><div id="progressFill"></div></div>
@@ -112,10 +229,9 @@
   <div id="camToggle">&#8635;</div>
 
   <div id="legend">
-    <div class="leg"><div class="leg-dot" style="background:#ff3b3b;"></div> Obličej + emoce</div>
-    <div class="leg"><div class="leg-dot" style="background:#00e5a0;"></div> Ruka + gesto</div>
+    <div class="leg"><div class="leg-dot" style="background:#ff3b3b;"></div> Obličej</div>
+    <div class="leg"><div class="leg-dot" style="background:#00e5a0;"></div> Ruka</div>
   </div>
-
   <div id="fpsLabel">0 fps</div>
 </div>
 
@@ -134,6 +250,7 @@ const legend     = document.getElementById('legend');
 const loader     = document.getElementById('loader');
 const loaderText = document.getElementById('loaderText');
 const progFill   = document.getElementById('progressFill');
+const statsPanel = document.getElementById('statsPanel');
 
 const FACE_MODEL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/model';
 
@@ -143,39 +260,112 @@ let running         = false;
 let mpHands         = null;
 let lastHandResults = [];
 let lastTime        = 0, frameCount = 0;
+let hideTimer       = null;
 
 // ── Emoce ─────────────────────────────────────────────────────────────────
 const EMOTION_MAP = {
-  happy:     { cs: 'Šťastný',    emoji: '😊' },
-  sad:       { cs: 'Smutný',     emoji: '😢' },
-  angry:     { cs: 'Naštvaný',   emoji: '😠' },
-  surprised: { cs: 'Překvapený', emoji: '😲' },
-  fearful:   { cs: 'Vystrašený', emoji: '😨' },
-  disgusted: { cs: 'Znechucený', emoji: '🤢' },
-  neutral:   { cs: 'Neutrální',  emoji: '😐' }
+  happy:     { cs: 'Šťastný',    emoji: '😊', color: '#ffd060' },
+  sad:       { cs: 'Smutný',     emoji: '😢', color: '#6ab0ff' },
+  angry:     { cs: 'Naštvaný',   emoji: '😠', color: '#ff6060' },
+  surprised: { cs: 'Překvapený', emoji: '😲', color: '#ff9f40' },
+  fearful:   { cs: 'Vystrašený', emoji: '😨', color: '#c084fc' },
+  disgusted: { cs: 'Znechucený', emoji: '🤢', color: '#86efac' },
+  neutral:   { cs: 'Neutrální',  emoji: '😐', color: '#aaa' }
 };
 
 // ── Gesta ─────────────────────────────────────────────────────────────────
 function getFingerStates(lm) {
-  const tips = [4, 8, 12, 16, 20];
-  const pips = [3, 6, 10, 14, 18];
-  const ext  = [];
+  const tips = [4,8,12,16,20], pips = [3,6,10,14,18], ext = [];
   ext.push(lm[4].x < lm[3].x);
   for (let i = 1; i < 5; i++) ext.push(lm[tips[i]].y < lm[pips[i]].y);
   return ext;
 }
 function recognizeGesture(lm) {
-  const [thumb, index, middle, ring, pinky] = getFingerStates(lm);
-  const count = [thumb,index,middle,ring,pinky].filter(Boolean).length;
-  if (count === 0)                                   return { emoji: '✊', name: 'Pěst' };
-  if (thumb && !index && !middle && !ring && !pinky) return { emoji: '👍', name: 'Palec nahoru' };
-  if (!thumb && index && !middle && !ring && pinky)  return { emoji: '🤘', name: 'Rock' };
-  if (!thumb && index && middle && !ring && !pinky)  return { emoji: '✌️',  name: 'Mír' };
-  if (!thumb && index && !middle && !ring && !pinky) return { emoji: '👆', name: 'Pointing' };
-  if (thumb && index && middle && ring && pinky)     return { emoji: '🖐', name: 'Otevřená ruka' };
-  return { emoji: '✋', name: count + ' prstů' };
+  const [thumb,index,middle,ring,pinky] = getFingerStates(lm);
+  const n = [thumb,index,middle,ring,pinky].filter(Boolean).length;
+  if (n===0)                                    return {emoji:'✊',name:'Pěst'};
+  if (thumb&&!index&&!middle&&!ring&&!pinky)    return {emoji:'👍',name:'Palec nahoru'};
+  if (!thumb&&index&&!middle&&!ring&&pinky)     return {emoji:'🤘',name:'Rock'};
+  if (!thumb&&index&&middle&&!ring&&!pinky)     return {emoji:'✌️',name:'Mír'};
+  if (!thumb&&index&&!middle&&!ring&&!pinky)    return {emoji:'👆',name:'Pointing'};
+  if (thumb&&index&&middle&&ring&&pinky)        return {emoji:'🖐',name:'Otevřená ruka'};
+  return {emoji:'✋',name:n+' prstů'};
 }
 function countFingers(lm) { return getFingerStates(lm).filter(Boolean).length; }
+
+// ── Detekce brýlí z landmarků ─────────────────────────────────────────────
+// Porovná vzdálenost očních koutků a výšku obočí — heuristika
+function detectGlasses(landmarks) {
+  // face-api vrací 68 bodů; oko levé: 36-41, pravé: 42-47, obočí: 17-26
+  if (!landmarks || landmarks.length < 68) return false;
+  const pts = landmarks.positions;
+  // Vzdálenost horního víčka od obočí (brýle ji trochu zvětší/změní)
+  const leftEyeTop    = pts[37]; // horní víčko levého oka
+  const leftBrow      = pts[19]; // střed levého obočí
+  const rightEyeTop   = pts[44];
+  const rightBrow     = pts[24];
+  const leftDist  = Math.abs(leftEyeTop.y  - leftBrow.y);
+  const rightDist = Math.abs(rightEyeTop.y - rightBrow.y);
+  const eyeWidth  = Math.abs(pts[36].x - pts[45].x); // celková šíře očí
+  // Pokud je vzdálenost obočí/oka malá relativně k šíři obličeje → pravděpodobně brýle
+  return (leftDist + rightDist) / 2 < eyeWidth * 0.18;
+}
+
+// ── Stats panel ───────────────────────────────────────────────────────────
+function showStats(det) {
+  const age     = Math.round(det.age);
+  const gender  = det.gender === 'male' ? '👨 Muž' : '👩 Žena';
+  const gendPct = Math.round(det.genderProbability * 100);
+  const conf    = Math.round(det.detection.score * 100);
+
+  const expArr  = Object.entries(det.expressions).sort((a,b) => b[1]-a[1]);
+  const [topKey, topVal] = expArr[0];
+  const topEm   = EMOTION_MAP[topKey] || { cs: topKey, emoji: '', color: '#fff' };
+
+  document.getElementById('st-age').textContent    = age + ' let';
+  document.getElementById('st-gender').textContent = gender + ' (' + gendPct + '%)';
+  document.getElementById('st-conf').textContent   = conf + '%';
+  document.getElementById('st-emo').textContent    = topEm.emoji + ' ' + topEm.cs;
+  document.getElementById('st-emo').style.color    = topEm.color;
+
+  // Brýle
+  const glassWrap = document.getElementById('st-glasses-wrap');
+  const hasGlasses = det.landmarks ? detectGlasses(det.landmarks) : false;
+  glassWrap.style.display = hasGlasses ? 'block' : 'none';
+
+  // Emotion bars
+  const ebars = document.getElementById('ebars');
+  ebars.innerHTML = '';
+  for (const [key, val] of expArr.slice(0, 5)) {
+    const em  = EMOTION_MAP[key] || { cs: key, color: '#aaa' };
+    const pct = Math.round(val * 100);
+    ebars.innerHTML += `
+      <div class="ebar-row">
+        <span class="ebar-name">${em.cs}</span>
+        <div class="ebar-track"><div class="ebar-fill" style="width:${pct}%;background:${em.color}"></div></div>
+        <span class="ebar-pct">${pct}%</span>
+      </div>`;
+  }
+
+  // Zobraz panel
+  if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
+  statsPanel.classList.remove('hiding');
+  statsPanel.style.display = 'block';
+  requestAnimationFrame(() => statsPanel.classList.add('visible'));
+}
+
+function hideStats() {
+  if (hideTimer) return;
+  hideTimer = setTimeout(() => {
+    statsPanel.classList.remove('visible');
+    statsPanel.classList.add('hiding');
+    setTimeout(() => {
+      statsPanel.style.display = 'none';
+      statsPanel.classList.remove('hiding');
+      hideTimer = null;
+    }, 280);
+  }, 600); // zmizí po 600ms bez obličeje
+}
 
 // ── MediaPipe Hands ────────────────────────────────────────────────────────
 function initMediaPipeHands() {
@@ -197,11 +387,19 @@ async function loadModels() {
     loaderText.textContent = 'Načítám detektor obličeje...';
     progFill.style.width = '10%';
     await faceapi.nets.tinyFaceDetector.loadFromUri(FACE_MODEL);
-    progFill.style.width = '40%';
+    progFill.style.width = '30%';
 
-    loaderText.textContent = 'Načítám rozpoznávání emocí...';
+    loaderText.textContent = 'Načítám věk & pohlaví...';
+    await faceapi.nets.ageGenderNet.loadFromUri(FACE_MODEL);
+    progFill.style.width = '50%';
+
+    loaderText.textContent = 'Načítám emoce...';
     await faceapi.nets.faceExpressionNet.loadFromUri(FACE_MODEL);
-    progFill.style.width = '70%';
+    progFill.style.width = '68%';
+
+    loaderText.textContent = 'Načítám landmarky...';
+    await faceapi.nets.faceLandmark68TinyNet.loadFromUri(FACE_MODEL);
+    progFill.style.width = '85%';
 
     loaderText.textContent = 'Načítám detektor rukou...';
     mpHands = await initMediaPipeHands();
@@ -251,8 +449,6 @@ function resizeCanvas() {
   canvas.width  = c.offsetWidth;
   canvas.height = c.offsetHeight;
 }
-
-// Převod z video pixelů na canvas pixely (object-fit: cover)
 function getRect() {
   const vw = video.videoWidth, vh = video.videoHeight;
   const cw = canvas.width,    ch = canvas.height;
@@ -263,35 +459,30 @@ function getRect() {
   else         { dw = cw; dh = cw / va; }
   return { x:(cw-dw)/2, y:(ch-dh)/2, sx:dw/vw, sy:dh/vh };
 }
-
 function drawCorners(x, y, w, h, len, color) {
-  ctx.strokeStyle = color;
-  ctx.lineWidth   = 3.5;
-  ctx.lineCap     = 'round';
+  ctx.strokeStyle = color; ctx.lineWidth = 3.5; ctx.lineCap = 'round';
   ctx.beginPath();
-  ctx.moveTo(x, y+len);     ctx.lineTo(x, y);     ctx.lineTo(x+len, y);
-  ctx.moveTo(x+w-len, y);   ctx.lineTo(x+w, y);   ctx.lineTo(x+w, y+len);
-  ctx.moveTo(x+w, y+h-len); ctx.lineTo(x+w, y+h); ctx.lineTo(x+w-len, y+h);
-  ctx.moveTo(x+len, y+h);   ctx.lineTo(x, y+h);   ctx.lineTo(x, y+h-len);
+  ctx.moveTo(x,y+len);     ctx.lineTo(x,y);     ctx.lineTo(x+len,y);
+  ctx.moveTo(x+w-len,y);   ctx.lineTo(x+w,y);   ctx.lineTo(x+w,y+len);
+  ctx.moveTo(x+w,y+h-len); ctx.lineTo(x+w,y+h); ctx.lineTo(x+w-len,y+h);
+  ctx.moveTo(x+len,y+h);   ctx.lineTo(x,y+h);   ctx.lineTo(x,y+h-len);
   ctx.stroke();
 }
-
 function drawPill(text, x, y, bg) {
   ctx.font = 'bold 13px system-ui, sans-serif';
   const tw = ctx.measureText(text).width + 14;
   ctx.fillStyle = bg;
-  ctx.fillRect(x, y - 22, tw, 20);
+  ctx.fillRect(x, y-22, tw, 20);
   ctx.fillStyle = '#fff';
-  ctx.fillText(text, x + 7, y - 7);
+  ctx.fillText(text, x+7, y-7);
 }
-
 function drawPillBelow(text, x, y, bg) {
   ctx.font = 'bold 13px system-ui, sans-serif';
   const tw = ctx.measureText(text).width + 14;
   ctx.fillStyle = bg;
-  ctx.fillRect(x, y + 3, tw, 20);
+  ctx.fillRect(x, y+3, tw, 20);
   ctx.fillStyle = '#fff';
-  ctx.fillText(text, x + 7, y + 17);
+  ctx.fillText(text, x+7, y+17);
 }
 
 // ── Detekce ────────────────────────────────────────────────────────────────
@@ -304,65 +495,83 @@ async function detect() {
     const opts = new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.3 });
 
     const [faces] = await Promise.all([
-      faceapi.detectAllFaces(video, opts).withFaceExpressions(),
+      faceapi.detectAllFaces(video, opts)
+        .withFaceLandmarks(true)
+        .withFaceExpressions()
+        .withAgeAndGender(),
       mpHands ? mpHands.send({ image: video }) : Promise.resolve()
     ]);
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // ── OBLIČEJE — ČERVENÁ ─────────────────────────────────────────────
-    for (const det of faces) {
-      const { x, y, width: w, height: h } = det.detection.box;
-      const bx  = r.x + x * r.sx;
-      const by  = r.y + y * r.sy;
-      const bw  = w * r.sx;
-      const bh  = h * r.sy;
-      const pct = Math.round(det.detection.score * 100);
+    // ── OBLIČEJE ──────────────────────────────────────────────────────
+    if (faces.length > 0) {
+      // Ukazuj stats pro první / nejjistější obličej
+      const best = faces.reduce((a,b) => a.detection.score > b.detection.score ? a : b);
+      showStats(best);
 
-      ctx.strokeStyle = 'rgba(255,59,59,0.2)';
-      ctx.lineWidth   = 10;
-      ctx.strokeRect(bx, by, bw, bh);
+      for (const det of faces) {
+        const { x, y, width: w, height: h } = det.detection.box;
+        const bx  = r.x + x * r.sx;
+        const by  = r.y + y * r.sy;
+        const bw  = w * r.sx;
+        const bh  = h * r.sy;
+        const age = Math.round(det.age);
+        const gen = det.gender === 'male' ? '👨' : '👩';
+        const pct = Math.round(det.detection.score * 100);
 
-      ctx.strokeStyle = '#ff3b3b';
-      ctx.lineWidth   = 2.5;
-      ctx.strokeRect(bx, by, bw, bh);
+        // Glow
+        ctx.strokeStyle = 'rgba(255,59,59,0.18)';
+        ctx.lineWidth   = 10;
+        ctx.strokeRect(bx, by, bw, bh);
 
-      drawCorners(bx, by, bw, bh, Math.min(bw,bh)*0.17, '#ff3b3b');
-      drawPill('Obličej ' + pct + '%', bx, by, '#cc2020');
+        // Rámeček
+        ctx.strokeStyle = '#ff3b3b';
+        ctx.lineWidth   = 2.5;
+        ctx.strokeRect(bx, by, bw, bh);
 
-      if (det.expressions) {
-        const sorted = Object.entries(det.expressions).sort((a,b) => b[1]-a[1]);
-        const [topKey, topVal] = sorted[0];
-        if (topVal > 0.35) {
-          const em = EMOTION_MAP[topKey] || { cs: topKey, emoji: '' };
-          drawPillBelow(em.emoji + ' ' + em.cs + ' ' + Math.round(topVal*100) + '%', bx, by+bh, '#7a1010');
+        drawCorners(bx, by, bw, bh, Math.min(bw,bh)*0.17, '#ff3b3b');
+
+        // Label nahoře: pohlaví + věk + jistota
+        drawPill(gen + ' ~' + age + 'l  ' + pct + '%', bx, by, '#bb1c1c');
+
+        // Emoce pod rámečkem
+        if (det.expressions) {
+          const sorted = Object.entries(det.expressions).sort((a,b)=>b[1]-a[1]);
+          const [topKey, topVal] = sorted[0];
+          if (topVal > 0.3) {
+            const em = EMOTION_MAP[topKey] || { emoji:'', cs: topKey };
+            drawPillBelow(em.emoji + ' ' + em.cs + ' ' + Math.round(topVal*100) + '%', bx, by+bh, '#6b0f0f');
+          }
+        }
+
+        // Brýle indikátor na rámečku
+        if (det.landmarks && detectGlasses(det.landmarks)) {
+          drawPill('🕶️ Brýle', bx + bw - 80, by, '#5a4000');
         }
       }
+    } else {
+      hideStats();
     }
 
-    // ── RUCE — ZELENÁ ─────────────────────────────────────────────────
+    // ── RUCE ──────────────────────────────────────────────────────────
     for (const landmarks of lastHandResults) {
       let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
       for (const pt of landmarks) {
-        const px = pt.x * video.videoWidth;
-        const py = pt.y * video.videoHeight;
+        const px = pt.x * video.videoWidth, py = pt.y * video.videoHeight;
         if (px < minX) minX = px; if (px > maxX) maxX = px;
         if (py < minY) minY = py; if (py > maxY) maxY = py;
       }
       const pad = 20;
-      const bx = r.x + (minX - pad) * r.sx;
-      const by = r.y + (minY - pad) * r.sy;
-      const bw = (maxX - minX + pad*2) * r.sx;
-      const bh = (maxY - minY + pad*2) * r.sy;
+      const bx = r.x + (minX-pad) * r.sx;
+      const by = r.y + (minY-pad) * r.sy;
+      const bw = (maxX-minX+pad*2) * r.sx;
+      const bh = (maxY-minY+pad*2) * r.sy;
 
-      ctx.strokeStyle = 'rgba(0,229,160,0.15)';
-      ctx.lineWidth   = 10;
+      ctx.strokeStyle = 'rgba(0,229,160,0.15)'; ctx.lineWidth = 10;
       ctx.strokeRect(bx, by, bw, bh);
-
-      ctx.strokeStyle = '#00e5a0';
-      ctx.lineWidth   = 2.5;
+      ctx.strokeStyle = '#00e5a0'; ctx.lineWidth = 2.5;
       ctx.strokeRect(bx, by, bw, bh);
-
       drawCorners(bx, by, bw, bh, Math.min(bw,bh)*0.17, '#00e5a0');
 
       const gesture = recognizeGesture(landmarks);
@@ -371,41 +580,30 @@ async function detect() {
       drawPillBelow('Prsty: ' + fingers, bx, by+bh, '#005540');
 
       // Kostra
-      const conn = [
-        [0,1],[1,2],[2,3],[3,4],
-        [0,5],[5,6],[6,7],[7,8],
-        [5,9],[9,10],[10,11],[11,12],
-        [9,13],[13,14],[14,15],[15,16],
-        [13,17],[17,18],[18,19],[19,20],
-        [0,17]
-      ];
-      ctx.strokeStyle = 'rgba(0,229,160,0.45)';
-      ctx.lineWidth   = 1.5;
+      const conn = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],[13,17],[17,18],[18,19],[19,20],[0,17]];
+      ctx.strokeStyle = 'rgba(0,229,160,0.45)'; ctx.lineWidth = 1.5;
       ctx.beginPath();
       for (const [a,b] of conn) {
-        ctx.moveTo(r.x + landmarks[a].x * video.videoWidth  * r.sx, r.y + landmarks[a].y * video.videoHeight * r.sy);
-        ctx.lineTo(r.x + landmarks[b].x * video.videoWidth  * r.sx, r.y + landmarks[b].y * video.videoHeight * r.sy);
+        ctx.moveTo(r.x+landmarks[a].x*video.videoWidth*r.sx, r.y+landmarks[a].y*video.videoHeight*r.sy);
+        ctx.lineTo(r.x+landmarks[b].x*video.videoWidth*r.sx, r.y+landmarks[b].y*video.videoHeight*r.sy);
       }
       ctx.stroke();
-
       for (let i = 0; i < landmarks.length; i++) {
-        const pt = landmarks[i];
-        const isTip = [4,8,12,16,20].includes(i);
+        const pt = landmarks[i], isTip = [4,8,12,16,20].includes(i);
         ctx.fillStyle = isTip ? '#fff' : '#00e5a0';
         ctx.beginPath();
-        ctx.arc(r.x + pt.x * video.videoWidth * r.sx, r.y + pt.y * video.videoHeight * r.sy, isTip ? 4 : 2.5, 0, Math.PI*2);
+        ctx.arc(r.x+pt.x*video.videoWidth*r.sx, r.y+pt.y*video.videoHeight*r.sy, isTip?4:2.5, 0, Math.PI*2);
         ctx.fill();
       }
     }
 
-    // FPS
+    // FPS + status
     frameCount++;
     const now = performance.now();
     if (now - lastTime >= 1000) {
       fpsLabel.textContent = frameCount + ' fps';
       frameCount = 0; lastTime = now;
     }
-
     const f = faces.length, hc = lastHandResults.length;
     const parts = [];
     if (f)  parts.push(f  === 1 ? '1 obličej' : f  + ' obličeje');
@@ -422,7 +620,6 @@ camToggle.addEventListener('click', () => {
   startCamera();
 });
 window.addEventListener('resize', resizeCanvas);
-
 loadModels();
 </script>
 </body>
