@@ -39,6 +39,7 @@
     position: absolute;
     width: 100%; height: 100%;
     transform: scaleX(-1);
+    z-index: 2;
   }
 
   /* ── Stats tabulka ─────────────────────────────────────────────────── */
@@ -398,7 +399,7 @@ async function loadModels() {
     progFill.style.width = '68%';
 
     loaderText.textContent = 'Načítám landmarky...';
-    await faceapi.nets.faceLandmark68TinyNet.loadFromUri(FACE_MODEL);
+    await faceapi.nets.faceLandmark68Net.loadFromUri(FACE_MODEL);
     progFill.style.width = '85%';
 
     loaderText.textContent = 'Načítám detektor rukou...';
@@ -488,19 +489,27 @@ function drawPillBelow(text, x, y, bg) {
 // ── Detekce ────────────────────────────────────────────────────────────────
 async function detect() {
   if (!running) return;
-  resizeCanvas();
 
   if (video.readyState >= 2) {
+    resizeCanvas();
     const r    = getRect();
     const opts = new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.3 });
 
-    const [faces] = await Promise.all([
-      faceapi.detectAllFaces(video, opts)
-        .withFaceLandmarks(true)
-        .withFaceExpressions()
-        .withAgeAndGender(),
-      mpHands ? mpHands.send({ image: video }) : Promise.resolve()
-    ]);
+    let faces = [];
+    try {
+      const [result] = await Promise.all([
+        faceapi.detectAllFaces(video, opts)
+          .withFaceLandmarks()
+          .withFaceExpressions()
+          .withAgeAndGender(),
+        mpHands ? mpHands.send({ image: video }) : Promise.resolve()
+      ]);
+      faces = result || [];
+    } catch(e) {
+      console.warn('detect error:', e);
+      requestAnimationFrame(detect);
+      return;
+    }
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
