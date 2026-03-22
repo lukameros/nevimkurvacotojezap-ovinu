@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>AI Kamera Lite</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background:#000; color:#fff;
+  font-family:system-ui,sans-serif;
+  height:100dvh; display:flex; flex-direction:column; overflow:hidden;
+}
+
+/* ── Splash ── */
+#splash {
+  position:fixed; inset:0; z-index:200; background:#000;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  transition:opacity .5s;
+}
+#splash.fade { opacity:0; pointer-events:none; }
+#splash-icon { font-size:56px; margin-bottom:12px; }
+#splash-title { font-size:24px; font-weight:700; letter-spacing:.5px; }
+#splash-sub { font-size:11px; color:rgba(255,255,255,.3); letter-spacing:3px; text-transform:uppercase; margin:6px 0 28px; }
+.sbadge {
+  padding:5px 16px; border-radius:20px; font-size:11px; font-weight:700;
+  letter-spacing:.5px; text-transform:uppercase; margin:4px 0;
+}
+.sb-green { background:rgba(0,229,160,.12); border:1px solid rgba(0,229,160,.4); color:#00e5a0; }
+.sb-red   { background:rgba(255,59,59,.1);  border:1px solid rgba(255,59,59,.35); color:#ff6b6b; }
+.sb-gold  { background:rgba(255,208,60,.1); border:1px solid rgba(255,208,60,.35); color:#ffd03c; }
+.sb-gray  { background:rgba(148,163,184,.1);border:1px solid rgba(148,163,184,.3); color:#94a3b8; }
+#splash-year { font-size:11px; color:rgba(255,255,255,.2); letter-spacing:3px; margin-top:20px; }
+#splash-bar { width:160px; height:2px; background:rgba(255,255,255,.08); border-radius:1px; overflow:hidden; margin-top:14px; }
+#splash-fill { height:100%; width:0%; background:rgba(255,255,255,.3); transition:width 5s linear; }
+
+/* ── Header ── */
+#header { padding:10px 16px 7px; text-align:center; flex-shrink:0; }
+#header h1 { font-size:15px; font-weight:600; }
+#status { font-size:11px; color:#888; margin-top:2px; min-height:15px; }
+
+@media (orientation:landscape) {
+  #header { padding:4px 16px 3px; }
+  #header h1 { font-size:13px; }
+  #status { font-size:10px; }
+}
+
+/* ── Camera ── */
+#container { position:relative; width:100%; flex:1; overflow:hidden; }
+#video { position:absolute; width:100%; height:100%; object-fit:cover; transform:scaleX(-1); }
+#canvas { position:absolute; width:100%; height:100%; z-index:2; }
+
+/* ── Stats panel ── */
+#stats {
+  position:absolute; top:10px; left:10px; z-index:30;
+  background:rgba(0,0,0,.78); border:1px solid rgba(255,255,255,.12);
+  border-radius:12px; padding:12px 14px; min-width:190px;
+  display:none; opacity:0; transform:translateY(-6px);
+  transition:opacity .25s, transform .25s; pointer-events:none;
+}
+#stats.show { display:block; opacity:1; transform:none; }
+#stats.hide { display:block; opacity:0; transform:translateY(-6px); }
+.st { font-size:10px; font-weight:600; color:rgba(255,255,255,.35); letter-spacing:1px; text-transform:uppercase; margin-bottom:8px; padding-bottom:6px; border-bottom:1px solid rgba(255,255,255,.07); }
+.sr { display:flex; justify-content:space-between; padding:3px 0; }
+.sl { font-size:11px; color:rgba(255,255,255,.45); }
+.sv { font-size:12px; font-weight:600; }
+.sv.r { color:#ff6b6b; } .sv.g { color:#00e5a0; } .sv.y { color:#ffd060; }
+.eb-wrap { margin-top:7px; padding-top:7px; border-top:1px solid rgba(255,255,255,.07); }
+.eb-t { font-size:9px; color:rgba(255,255,255,.35); font-weight:600; letter-spacing:.8px; text-transform:uppercase; margin-bottom:4px; }
+.eb-r { display:flex; align-items:center; gap:5px; margin-bottom:3px; }
+.eb-n { font-size:10px; color:rgba(255,255,255,.5); width:70px; flex-shrink:0; }
+.eb-tr { flex:1; height:4px; background:rgba(255,255,255,.07); border-radius:2px; overflow:hidden; }
+.eb-f { height:100%; border-radius:2px; transition:width .3s; }
+.eb-p { font-size:9px; color:rgba(255,255,255,.35); width:26px; text-align:right; }
+
+/* ── Buttons ── */
+#startBtn {
+  position:absolute; z-index:20; top:50%; left:50%; transform:translate(-50%,-50%);
+  background:#fff; color:#000; border:none; border-radius:50px;
+  padding:14px 36px; font-size:16px; font-weight:600; cursor:pointer; display:none;
+}
+#camToggle {
+  position:absolute; bottom:20px; right:16px; z-index:20;
+  background:rgba(255,255,255,.13); border:1px solid rgba(255,255,255,.25);
+  border-radius:50%; width:48px; height:48px; font-size:22px;
+  cursor:pointer; display:none; align-items:center; justify-content:center; color:#fff;
+}
+#photoBtn {
+  position:absolute; bottom:16px; left:50%; transform:translateX(-50%); z-index:20;
+  background:rgba(255,255,255,.15); border:2.5px solid rgba(255,255,255,.7);
+  border-radius:50%; width:60px; height:60px; font-size:26px;
+  cursor:pointer; display:none; align-items:center; justify-content:center; color:#fff;
+}
+#photoBtn:active { transform:translateX(-50%) scale(.9); }
+#flash { position:absolute; inset:0; z-index:50; background:#fff; pointer-events:none; opacity:0; }
+
+/* ── Claude scan button ── */
+#claudeBtn {
+  position:absolute; bottom:20px; left:16px; z-index:20;
+  background:rgba(255,208,60,.15); border:2px solid rgba(255,208,60,.5);
+  border-radius:50%; width:48px; height:48px; font-size:20px;
+  cursor:pointer; display:none; align-items:center; justify-content:center; color:#ffd03c;
+}
+#claudeBtn.loading { animation:recpulse 0.7s infinite; }
+#claudeResult {
+  position:absolute; bottom:80px; left:12px; right:12px; z-index:30;
+  background:rgba(0,0,0,.85); border:1px solid rgba(255,208,60,.35);
+  border-radius:12px; padding:12px 14px; display:none;
+  font-size:13px; line-height:1.6; color:rgba(255,255,255,.9);
+}
+#claudeResult .cr-title {
+  font-size:10px; font-weight:700; color:#ffd03c;
+  letter-spacing:1px; text-transform:uppercase; margin-bottom:6px;
+}
+#claudeResult .cr-close {
+  float:right; cursor:pointer; color:rgba(255,255,255,.4); font-size:16px; margin-top:-2px;
+}
+#apiKeyWrap {
+  position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+  z-index:40; background:rgba(0,0,0,.92); border:1px solid rgba(255,255,255,.15);
+  border-radius:14px; padding:20px; width:88%; max-width:320px; display:none;
+}
+#apiKeyWrap h3 { font-size:14px; font-weight:600; margin-bottom:10px; }
+#apiKeyWrap p  { font-size:11px; color:rgba(255,255,255,.5); margin-bottom:10px; line-height:1.5; }
+#apiKeyInput {
+  width:100%; padding:10px 12px; background:rgba(255,255,255,.07);
+  border:1px solid rgba(255,255,255,.2); border-radius:8px;
+  color:#fff; font-size:13px; margin-bottom:10px; outline:none;
+}
+#apiKeySave {
+  width:100%; padding:11px; background:#ffd03c; color:#000;
+  border:none; border-radius:8px; font-size:14px; font-weight:700; cursor:pointer;
+}
+
+/* ── Record button ── */
+#recBtn {
+  position:absolute; bottom:20px; right:72px; z-index:20;
+  background:rgba(255,59,59,.15); border:2px solid rgba(255,59,59,.5);
+  border-radius:50%; width:48px; height:48px; font-size:20px;
+  cursor:pointer; display:none; align-items:center; justify-content:center; color:#ff3b3b;
+  transition:background .2s;
+}
+#recBtn.rec {
+  background:rgba(255,59,59,.35); border-color:#ff3b3b;
+  animation:recpulse 1s infinite;
+}
+@keyframes recpulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+#recTimer {
+  position:absolute; top:8px; left:50%; transform:translateX(-50%);
+  z-index:20; display:none; align-items:center; gap:6px;
+  background:rgba(0,0,0,.65); border:1px solid rgba(255,59,59,.4);
+  border-radius:20px; padding:4px 12px;
+  font-size:13px; font-weight:700; color:#ff4444; font-family:monospace;
+}
+#recDot { width:8px; height:8px; border-radius:50%; background:#ff3b3b; animation:recpulse 1s infinite; }
+
+/* ── Zoom bar ── */
+#zoomBar {
+  position:absolute; bottom:90px; left:50%; transform:translateX(-50%);
+  z-index:20; display:none; gap:4px; align-items:center;
+  background:rgba(0,0,0,.55); border:1px solid rgba(255,255,255,.15);
+  border-radius:30px; padding:5px 10px;
+}
+.zb { background:none; border:none; color:rgba(255,255,255,.65); font-size:13px; font-weight:700; cursor:pointer; padding:4px 8px; border-radius:14px; }
+.zb.on { background:rgba(255,255,255,.22); color:#fff; }
+
+/* ── Legend ── */
+#legend {
+  position:absolute; bottom:20px; left:12px; z-index:20;
+  display:none; flex-direction:column; gap:4px;
+}
+.lg { display:flex; align-items:center; gap:6px; font-size:10px; color:rgba(255,255,255,.6); }
+.ld { width:10px; height:10px; border-radius:2px; }
+
+#fps { position:absolute; top:8px; right:10px; z-index:20; font-size:10px; color:rgba(255,255,255,.3); font-family:monospace; display:none; }
+
+/* ── Loader ── */
+#loader {
+  position:absolute; z-index:30; top:50%; left:50%; transform:translate(-50%,-50%);
+  display:flex; flex-direction:column; align-items:center; gap:12px;
+}
+.spin { width:36px; height:36px; border:3px solid rgba(255,255,255,.12); border-top-color:#fff; border-radius:50%; animation:spin .8s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+.spin-t { font-size:12px; color:#777; text-align:center; max-width:220px; }
+#pbar { width:180px; height:3px; background:rgba(255,255,255,.1); border-radius:2px; overflow:hidden; }
+#pfill { height:100%; background:#fff; border-radius:2px; width:0%; transition:width .4s; }
+
+/* ── Net banner ── */
+#net { width:100%; padding:5px 16px; text-align:center; font-size:11px; font-weight:600; flex-shrink:0; display:none; }
+#net.off { background:#7f1d1d; color:#fca5a5; display:block; }
+#net.on  { background:#14532d; color:#86efac; display:block; }
+</style>
+</head>
+<body>
+
+<!-- Splash -->
+<div id="splash">
+  <div id="splash-icon">📷</div>
+  <div id="splash-title">AI Kamera Lite</div>
+  <div id="splash-sub">Detekce osob &amp; vozidel</div>
+  <div class="sbadge sb-green">✍ Created by Lukamer</div>
+  <div class="sbadge sb-red">🔒 Protected Lukcheat</div>
+  <div class="sbadge sb-gold">🔥 No Quality</div>
+  <div class="sbadge sb-gray">👁 AI Vision Lite</div>
+  <div id="splash-year">2026</div>
+  <div id="splash-bar"><div id="splash-fill"></div></div>
+</div>
+
+<div id="net"></div>
+<div id="header">
+  <h1>📷 AI Kamera Lite</h1>
+  <div id="status">Načítám modely...</div>
+</div>
+
+<div id="container">
+  <video id="video" playsinline autoplay muted></video>
+  <canvas id="canvas"></canvas>
+
+  <!-- Stats panel obličeje -->
+  <div id="stats">
+    <div class="st">👤 Analýza obličeje</div>
+    <div class="sr"><span class="sl">Věk</span><span class="sv r" id="st-age">—</span></div>
+    <div class="sr"><span class="sl">Pohlaví</span><span class="sv" id="st-gen">—</span></div>
+    <div class="sr"><span class="sl">Jistota</span><span class="sv g" id="st-conf">—</span></div>
+    <div class="sr"><span class="sl">Emoce</span><span class="sv y" id="st-emo">—</span></div>
+    <div class="eb-wrap">
+      <div class="eb-t">Emoce</div>
+      <div id="ebars"></div>
+    </div>
+  </div>
+
+  <div id="loader">
+    <div class="spin"></div>
+    <div id="pbar"><div id="pfill"></div></div>
+    <div class="spin-t" id="ltxt">Připravuji...</div>
+  </div>
+
+  <button id="startBtn">Zapnout kameru</button>
+  <div id="camToggle">⟳</div>
+  <div id="photoBtn">📷</div>
+  <div id="recBtn" title="Nahrávat">⏺</div>
+  <div id="claudeBtn" title="AI sken">🔍</div>
+  <div id="recTimer"><div id="recDot"></div><span id="recTime">00:00</span></div>
+  <div id="flash"></div>
+
+  <div id="claudeResult">
+    <span class="cr-close" id="crClose">✕</span>
+    <div class="cr-title">🤖 Claude AI analýza</div>
+    <div id="crText">...</div>
+  </div>
+
+  <div id="apiKeyWrap">
+    <h3>🔑 Anthropic API klíč</h3>
+    <p>Zadej svůj API klíč pro přesné rozpoznání modelu auta, zbraní a dalšího. Klíč se uloží jen v prohlížeči.</p>
+    <input type="password" id="apiKeyInput" placeholder="sk-ant-api03-...">
+    <button id="apiKeySave">Uložit a pokračovat</button>
+  </div>
+
+  <div id="zoomBar">
+    <button class="zb on" data-z="1">1×</button>
+    <button class="zb" data-z="2">2×</button>
+    <button class="zb" data-z="3">3×</button>
+    <button class="zb" data-z="4">4×</button>
+    <button class="zb" data-z="6">6×</button>
+  </div>
+
+  <div id="legend">
+    <div class="lg"><div class="ld" style="background:#ff3b3b"></div>Obličej</div>
+    <div class="lg"><div class="ld" style="background:#00e5a0"></div>Ruka</div>
+    <div class="lg"><div class="ld" style="background:#ff8c00"></div>Osoba</div>
+    <div class="lg"><div class="ld" style="background:#38bdf8"></div>Auto/vozidlo</div>
+  </div>
+  <div id="fps">0 fps</div>
+</div>
+
+<!-- Suppress TF.js warnings -->
+<script>
+const _cw = console.warn.bind(console);
+console.warn = (...a) => {
+  const s = String(a[0]||'');
+  if (s.includes('already registered')||s.includes('already been set')||s.includes('Reusing existing')) return;
+  _cw(...a);
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.21.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/dist/face-api.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/hands.min.js" crossorigin="anonymous"></script>
+
+<script>
+// ── DOM refs ──────────────────────────────────────────────────────────────
+const video   = document.getElementById('video');
+const canvas  = document.getElementById('canvas');
+const ctx     = canvas.getContext('2d');
+const statusEl= document.getElementById('status');
+const startBtn= document.getElementById('startBtn');
+const camToggle=document.getElementById('camToggle');
+const photoBtn= document.getElementById('photoBtn');
+const flashEl = document.getElementById('flash');
+const fpsEl   = document.getElementById('fps');
+const legend  = document.getElementById('legend');
+const loader  = document.getElementById('loader');
+const ltxt    = document.getElementById('ltxt');
+const pfill   = document.getElementById('pfill');
+const statsEl = document.getElementById('stats');
+const zoomBar = document.getElementById('zoomBar');
+const netEl   = document.getElementById('net');
+
+const FACE_MODEL = 'https://unpkg.com/@vladmandic/face-api@1.7.12/model';
+
+// ── State ─────────────────────────────────────────────────────────────────
+let stream=null, running=false, starting=false, facingMode='user';
+let mpHands=null, cocoModel=null;
+let fastFaces=[], cocoResults=[], cachedAnalysis=[], lastHandResults=[];
+let ageHistory=[], hideTimer=null;
+let canvasW=0, canvasH=0;
+let frameCount=0, lastTime=0;
+let currentZoom=1;
+
+// ── Emoce ─────────────────────────────────────────────────────────────────
+const EM = {
+  happy:    {cs:'Šťastný',  e:'😊', c:'#ffd060'},
+  sad:      {cs:'Smutný',   e:'😢', c:'#6ab0ff'},
+  angry:    {cs:'Naštvaný', e:'😠', c:'#ff6060'},
+  surprised:{cs:'Překvapen',e:'😲', c:'#ff9f40'},
+  fearful:  {cs:'Vystrašen',e:'😨', c:'#c084fc'},
+  disgusted:{cs:'Znechucen',e:'🤢', c:'#86efac'},
+  neutral:  {cs:'Neutrální',e:'😐', c:'#aaa'},
+};
+
+// ── Gesta ─────────────────────────────────────────────────────────────────
+function fingers(lm){
+  const tips=[4,8,12,16,20],pips=[3,6,10,14,18],e=[];
+  e.push(lm[4].x<lm[3].x);
+  for(let i=1;i<5;i++) e.push(lm[tips[i]].y<lm[pips[i]].y);
+  return e;
+}
+function d(lm,a,b){const dx=lm[a].x-lm[b].x,dy=lm[a].y-lm[b].y;return Math.sqrt(dx*dx+dy*dy);}
+function gesture(lm){
+  const [th,ix,mi,ri,pi]=fingers(lm),n=[th,ix,mi,ri,pi].filter(Boolean).length;
+  const sp=d(lm,0,12);
+  if(d(lm,4,8)<sp*.25&&!mi&&!ri&&!pi) return{e:'🤙',n:'Srdíčko'};
+  if(d(lm,4,8)<sp*.22&&mi&&ri&&pi)    return{e:'👌',n:'OK'};
+  if(n===0)                            return{e:'✊',n:'Pěst'};
+  if(th&&!ix&&!mi&&!ri&&!pi)           return{e:'👍',n:'Palec'};
+  if(!th&&!ix&&mi&&!ri&&!pi)           return{e:'🖕',n:'Prostředník'};
+  if(!th&&ix&&mi&&!ri&&!pi)            return{e:'✌️',n:'Mír'};
+  if(!th&&ix&&!mi&&!ri&&pi)            return{e:'🤘',n:'Rock'};
+  if(!th&&ix&&!mi&&!ri&&!pi)           return{e:'👆',n:'Pointing'};
+  if(th&&!ix&&!mi&&!ri&&pi)            return{e:'🤙',n:'Zavolej'};
+  if(th&&ix&&mi&&ri&&pi)               return{e:'🖐',n:'Ruka'};
+  return{e:'✋',n:n+' prstů'};
+}
+
+// ── Vzdálenost osoby ──────────────────────────────────────────────────────
+function distLabel(bboxH, sy){
+  const cm=(170*700)/(bboxH*sy);
+  if(cm<80)   return{t:Math.round(cm)+'cm', c:'#ff4444'};
+  if(cm<3000) return{t:(Math.round(cm/10)/10).toFixed(1)+'m', c:cm<300?'#ffd03c':'#00e5a0'};
+  return      {t:'~'+Math.round(cm/100)+'0m', c:'#94a3b8'};
+}
+
+// ── Canvas helpers ────────────────────────────────────────────────────────
+function maybeResize(){
+  const c=document.getElementById('container');
+  if(c.offsetWidth!==canvasW||c.offsetHeight!==canvasH){
+    canvasW=canvas.width=c.offsetWidth;
+    canvasH=canvas.height=c.offsetHeight;
+  }
+}
+function getR(){
+  const vw=video.videoWidth,vh=video.videoHeight,cw=canvas.width,ch=canvas.height;
+  if(!vw||!vh) return{x:0,y:0,sx:1,sy:1,cw};
+  const va=vw/vh,ca=cw/ch;
+  let dw,dh;
+  if(va>ca){dh=ch;dw=ch*va;}else{dw=cw;dh=cw/va;}
+  return{x:(cw-dw)/2,y:(ch-dh)/2,sx:dw/vw,sy:dh/vh,cw};
+}
+// Zrcadlení X (video je CSS flipped, canvas ne)
+function vx(x,r){return r.cw-(r.x+x*r.sx);}
+function vy(y,r){return r.y+y*r.sy;}
+function toBox(x,y,w,h,r){return[vx(x+w,r),vy(y,r),w*r.sx,h*r.sy];}
+
+function drawCorners(bx,by,bw,bh,l,col){
+  ctx.strokeStyle=col;ctx.lineWidth=3.5;ctx.lineCap='round';
+  ctx.beginPath();
+  ctx.moveTo(bx,by+l);ctx.lineTo(bx,by);ctx.lineTo(bx+l,by);
+  ctx.moveTo(bx+bw-l,by);ctx.lineTo(bx+bw,by);ctx.lineTo(bx+bw,by+l);
+  ctx.moveTo(bx+bw,by+bh-l);ctx.lineTo(bx+bw,by+bh);ctx.lineTo(bx+bw-l,by+bh);
+  ctx.moveTo(bx+l,by+bh);ctx.lineTo(bx,by+bh);ctx.lineTo(bx,by+bh-l);
+  ctx.stroke();
+}
+function box(bx,by,bw,bh,col,glow){
+  ctx.strokeStyle=glow;ctx.lineWidth=10;ctx.strokeRect(bx,by,bw,bh);
+  ctx.strokeStyle=col;ctx.lineWidth=2.5;ctx.strokeRect(bx,by,bw,bh);
+  drawCorners(bx,by,bw,bh,Math.min(bw,bh)*.15,col);
+}
+function pill(txt,bx,by,bg,fg){
+  ctx.font='bold 15px system-ui,sans-serif';
+  const tw=ctx.measureText(txt).width+16;
+  ctx.fillStyle=bg;ctx.fillRect(bx,by-24,tw,22);
+  ctx.fillStyle=fg||'#fff';ctx.fillText(txt,bx+8,by-7);
+}
+function pillB(txt,bx,by,bg,fg){
+  ctx.font='bold 15px system-ui,sans-serif';
+  const tw=ctx.measureText(txt).width+16;
+  ctx.fillStyle=bg;ctx.fillRect(bx,by+3,tw,22);
+  ctx.fillStyle=fg||'#fff';ctx.fillText(txt,bx+8,by+19);
+}
+function pillR(txt,bxw,by,bg,fg){
+  ctx.font='bold 14px system-ui,sans-serif';
+  const tw=ctx.measureText(txt).width+14;
+  ctx.fillStyle=bg;ctx.fillRect(bxw-tw,by-24,tw,22);
+  ctx.fillStyle=fg||'#fff';ctx.fillText(txt,bxw-tw+7,by-7);
+}
+
+// ── Stats panel ───────────────────────────────────────────────────────────
+function showStats(d){
+  ageHistory.push(Math.round(d.age));
+  if(ageHistory.length>30)ageHistory.shift();
+  const sorted=[...ageHistory].sort((a,b)=>a-b);
+  const mid=Math.floor(sorted.length/2);
+  const age=sorted.length%2?sorted[mid]:Math.round((sorted[mid-1]+sorted[mid])/2);
+  document.getElementById('st-age').textContent=age+' let';
+  document.getElementById('st-gen').textContent=(d.gender==='male'?'👨 Muž':'👩 Žena')+' ('+Math.round(d.genderProbability*100)+'%)';
+  document.getElementById('st-conf').textContent=Math.round(d.detection.score*100)+'%';
+  const sorted2=Object.entries(d.expressions).sort((a,b)=>b[1]-a[1]);
+  const [tk,tv]=sorted2[0];const em=EM[tk]||{cs:tk,e:'',c:'#fff'};
+  const ste=document.getElementById('st-emo');
+  ste.textContent=em.e+' '+em.cs; ste.style.color=em.c;
+  const eb=document.getElementById('ebars');eb.innerHTML='';
+  sorted2.slice(0,5).forEach(([k,v])=>{
+    const m=EM[k]||{cs:k,c:'#aaa'};
+    eb.innerHTML+=`<div class="eb-r"><span class="eb-n">${m.cs}</span><div class="eb-tr"><div class="eb-f" style="width:${Math.round(v*100)}%;background:${m.c}"></div></div><span class="eb-p">${Math.round(v*100)}%</span></div>`;
+  });
+  if(hideTimer){clearTimeout(hideTimer);hideTimer=null;}
+  statsEl.classList.remove('hide');
+  statsEl.style.display='block';
+  requestAnimationFrame(()=>statsEl.classList.add('show'));
+}
+function hideStats(){
+  if(hideTimer)return;
+  hideTimer=setTimeout(()=>{
+    statsEl.classList.remove('show');statsEl.classList.add('hide');
+    setTimeout(()=>{statsEl.style.display='none';statsEl.classList.remove('hide');hideTimer=null;},280);
+  },800);
+}
+
+// ── MediaPipe Hands ───────────────────────────────────────────────────────
+function initHands(){
+  return new Promise((res,rej)=>{
+    try{
+      const h=new Hands({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/${f}`});
+      h.setOptions({maxNumHands:2,modelComplexity:0,minDetectionConfidence:.5,minTrackingConfidence:.5});
+      h.onResults(r=>{lastHandResults=r.multiHandLandmarks||[];});
+      h.initialize().then(()=>res(h)).catch(rej);
+    }catch(e){rej(e);}
+  });
+}
+
+// ── Načítání modelů ───────────────────────────────────────────────────────
+async function loadModels(){
+  try{
+    ltxt.textContent='Detektor obličeje...'; pfill.style.width='10%';
+    await faceapi.nets.tinyFaceDetector.loadFromUri(FACE_MODEL); pfill.style.width='28%';
+    ltxt.textContent='Věk & pohlaví...';
+    await faceapi.nets.ageGenderNet.loadFromUri(FACE_MODEL); pfill.style.width='46%';
+    ltxt.textContent='Emoce...';
+    await faceapi.nets.faceExpressionNet.loadFromUri(FACE_MODEL); pfill.style.width='66%';
+    ltxt.textContent='Detektor osob & aut...';
+    cocoModel=await cocoSsd.load({base:'lite_mobilenet_v2'}); pfill.style.width='88%';
+    ltxt.textContent='Detektor rukou...';
+    mpHands=await initHands(); pfill.style.width='100%';
+    setTimeout(()=>{
+      loader.style.display='none';
+      statusEl.textContent='Připraveno ✓';
+      startBtn.style.display='block';
+    },300);
+  }catch(e){
+    loader.style.display='none';
+    statusEl.textContent='⚠️ Chyba: '+e.message;
+    startBtn.style.display='block';
+    console.error(e);
+  }
+}
+
+// ── Kamera ────────────────────────────────────────────────────────────────
+async function startCamera(){
+  if(starting)return; starting=true;
+  running=false;
+  await new Promise(r=>setTimeout(r,80));
+  if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}
+  video.srcObject=null;
+  startBtn.style.display='none';
+  statusEl.textContent='Spouštím kameru...';
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({
+      video:{facingMode,width:{ideal:960},height:{ideal:540}},audio:false
+    });
+    video.srcObject=stream;
+    await new Promise((res,rej)=>{
+      const to=setTimeout(()=>rej(new Error('Timeout')),8000);
+      video.onloadedmetadata=()=>{clearTimeout(to);res();};
+      video.onerror=e=>{clearTimeout(to);rej(e);};
+    });
+    try{await video.play();}catch(e){await new Promise(r=>setTimeout(r,200));await video.play();}
+    camToggle.style.display='flex'; photoBtn.style.display='flex';
+    recBtn.style.display='flex'; claudeBtn.style.display='flex';
+    zoomBar.style.display='flex'; legend.style.display='flex'; fpsEl.style.display='block';
+    statusEl.textContent='Hledám...';
+    ageHistory=[];cachedAnalysis=[];running=true;starting=false;
+    drawLoop();
+    setTimeout(()=>{if(running)faceLoop();},100);
+    setTimeout(()=>{if(running)cocoLoop();},200);
+    setTimeout(()=>{if(running)handsLoop();},300);
+    setTimeout(()=>{if(running)analysisLoop();},400);
+  }catch(e){
+    starting=false;running=false;
+    statusEl.textContent='⚠️ Kamera selhala';
+    startBtn.style.display='block';
+    console.error(e);
+  }
+}
+
+// ── COCO canvas ───────────────────────────────────────────────────────────
+const ccv=document.createElement('canvas');
+const cct=ccv.getContext('2d');
+
+// Pouze osoby a vozidla
+const VEHICLES=['car','truck','bus','motorcycle','bicycle','boat','airplane','train'];
+
+// ── 1. Kreslení — 60fps ───────────────────────────────────────────────────
+function drawLoop(){
+  if(!running)return;
+  maybeResize();
+  draw();
+  frameCount++;
+  const now=performance.now();
+  if(now-lastTime>=1000){fpsEl.textContent=frameCount+' fps';frameCount=0;lastTime=now;}
+  if(fastFaces.length===0)hideStats();
+  const f=fastFaces.length,hc=lastHandResults.length;
+  const p=cocoResults.filter(o=>o.class==='person').length;
+  const v=cocoResults.filter(o=>VEHICLES.includes(o.class)).length;
+  const parts=[];
+  if(f)parts.push(f===1?'1 obličej':f+' obličeje');
+  if(hc)parts.push(hc===1?'1 ruka':hc+' ruce');
+  if(p)parts.push(p===1?'1 osoba':p+' osoby');
+  if(v)parts.push(v===1?'1 vozidlo':v+' vozidel');
+  statusEl.textContent=parts.length?parts.join(' · '):'Hledám...';
+  requestAnimationFrame(drawLoop);
+}
+
+// ── 2. Obličej — každých 150ms ────────────────────────────────────────────
+let fR=false;
+async function faceLoop(){
+  if(!running){fR=false;return;}
+  if(!fR&&video.readyState>=2){
+    fR=true;
+    try{
+      const o=new faceapi.TinyFaceDetectorOptions({inputSize:160,scoreThreshold:.3});
+      fastFaces=await faceapi.detectAllFaces(video,o);
+    }catch(e){fastFaces=[];}
+    fR=false;
+  }
+  setTimeout(()=>{if(running)faceLoop();},300); // bylo 150ms → 300ms
+}
+
+// ── 3. COCO — každých 400ms (pouze osoby a vozidla) ──────────────────────
+let cR=false;
+async function cocoLoop(){
+  if(!running){cR=false;return;}
+  if(!cR&&cocoModel&&video.readyState>=2){
+    cR=true;
+    try{
+      ccv.width=480; // bylo 960 → 480, 4x rychlejší
+      ccv.height=Math.round(480*(video.videoHeight/video.videoWidth));
+      cct.drawImage(video,0,0,ccv.width,ccv.height);
+      const raw=await cocoModel.detect(ccv,20,.3); // méně objektů, vyšší threshold
+      const sx=video.videoWidth/ccv.width,sy=video.videoHeight/ccv.height;
+      cocoResults=raw
+        .filter(o=>o.class==='person'||VEHICLES.includes(o.class))
+        .map(o=>({...o,bbox:[o.bbox[0]*sx,o.bbox[1]*sy,o.bbox[2]*sx,o.bbox[3]*sy]}));
+    }catch(e){cocoResults=[];}
+    cR=false;
+  }
+  setTimeout(()=>{if(running)cocoLoop();},700); // bylo 400ms → 700ms
+}
+
+let hR=false;
+async function handsLoop(){
+  if(!running){hR=false;return;}
+  if(!hR&&mpHands&&video.readyState>=2){
+    hR=true;
+    try{await mpHands.send({image:video});}catch(e){}
+    hR=false;
+  }
+  setTimeout(()=>{if(running)handsLoop();},250); // bylo 120ms → 250ms
+}
+
+// ── 5. Analýza věk/emoce — každých 900ms ─────────────────────────────────
+async function analysisLoop(){
+  if(!running)return;
+  if(video.readyState>=2&&fastFaces.length>0){
+    try{
+      const o=new faceapi.TinyFaceDetectorOptions({inputSize:224,scoreThreshold:.3});
+      const res=await faceapi.detectAllFaces(video,o).withFaceExpressions().withAgeAndGender();
+      if(res.length>0){
+        cachedAnalysis=res;
+        showStats(res.reduce((a,b)=>a.detection.score>b.detection.score?a:b));
+      }
+    }catch(e){}
+  }
+  setTimeout(()=>{if(running)analysisLoop();},1500); // bylo 900ms → 1500ms
+}
+
+// ── Kreslení ──────────────────────────────────────────────────────────────
+function draw(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  const r=getR();
+
+  // Obličeje — červené
+  for(let i=0;i<fastFaces.length;i++){
+    const det=fastFaces[i];
+    const {x,y,width:w,height:h}=det.box;
+    const [bx,by,bw,bh]=toBox(x,y,w,h,r);
+    box(bx,by,bw,bh,'#ff3b3b','rgba(255,59,59,.18)');
+    const ca=cachedAnalysis[i];
+    if(ca){
+      const agS=[...ageHistory].sort((a,b)=>a-b);
+      const agM=Math.floor(agS.length/2);
+      const ag=agS.length?(agS.length%2?agS[agM]:Math.round((agS[agM-1]+agS[agM])/2)):Math.round(ca.age);
+      const gn=ca.gender==='male'?'👨':'👩';
+      pill(gn+' ~'+ag+'l  '+Math.round(det.score*100)+'%',bx,by,'#bb1c1c');
+      if(ca.expressions){
+        const s=Object.entries(ca.expressions).sort((a,b)=>b[1]-a[1]);
+        if(s[0][1]>.3){const em=EM[s[0][0]]||{e:'',cs:s[0][0]};pillB(em.e+' '+em.cs,bx,by+bh,'#6b0f0f');}
+      }
+    }else{
+      pill('Obličej '+Math.round(det.score*100)+'%',bx,by,'#bb1c1c');
+    }
+  }
+
+  // COCO — osoby (oranžová) + vozidla (modrá)
+  for(const obj of cocoResults){
+    const isPerson=obj.class==='person';
+    const col=isPerson?'#ff8c00':'#38bdf8';
+    const glow=isPerson?'rgba(255,140,0,.18)':'rgba(56,189,248,.18)';
+    const [ox,oy,ow,oh]=obj.bbox;
+    const [bx,by,bw,bh]=toBox(ox,oy,ow,oh,r);
+    const pct=Math.round(obj.score*100);
+    box(bx,by,bw,bh,col,glow);
+    if(isPerson){
+      // Vzdálenost
+      const dist=distLabel(oh,r.sy);
+      pill('🏃 Osoba '+pct+'%',bx,by,col+'cc');
+      pillR('📏 '+dist.t,bx+bw,by,'rgba(0,0,0,.75)',dist.c);
+    }else{
+      const labels={car:'🚗 Auto',truck:'🚛 Nákladák',bus:'🚌 Bus',motorcycle:'🏍 Motorka',bicycle:'🚲 Kolo',boat:'⛵ Loď',airplane:'✈️ Letadlo',train:'🚂 Vlak'};
+      pill((labels[obj.class]||obj.class)+' '+pct+'%',bx,by,col+'cc');
+    }
+  }
+
+  // Ruce — zelené
+  for(const lm of lastHandResults){
+    let mnX=1e9,mnY=1e9,mxX=-1e9,mxY=-1e9;
+    for(const p of lm){
+      const px=p.x*video.videoWidth,py=p.y*video.videoHeight;
+      if(px<mnX)mnX=px;if(px>mxX)mxX=px;if(py<mnY)mnY=py;if(py>mxY)mxY=py;
+    }
+    const pad=20;
+    const [bx,by,bw,bh]=toBox(mnX-pad,mnY-pad,mxX-mnX+pad*2,mxY-mnY+pad*2,r);
+    box(bx,by,bw,bh,'#00e5a0','rgba(0,229,160,.15)');
+    const g=gesture(lm),f=fingers(lm).filter(Boolean).length;
+    pill(g.e+' '+g.n,bx,by,'#007a55');
+    pillB('Prsty: '+f,bx,by+bh,'#005540');
+    // Kostra
+    const conn=[[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],[13,17],[17,18],[18,19],[19,20],[0,17]];
+    ctx.strokeStyle='rgba(0,229,160,.45)';ctx.lineWidth=1.5;ctx.beginPath();
+    for(const[a,b]of conn){
+      ctx.moveTo(vx(lm[a].x*video.videoWidth,r),vy(lm[a].y*video.videoHeight,r));
+      ctx.lineTo(vx(lm[b].x*video.videoWidth,r),vy(lm[b].y*video.videoHeight,r));
+    }
+    ctx.stroke();
+    for(let i=0;i<lm.length;i++){
+      const tip=[4,8,12,16,20].includes(i);
+      ctx.fillStyle=tip?'#fff':'#00e5a0';
+      ctx.beginPath();
+      ctx.arc(vx(lm[i].x*video.videoWidth,r),vy(lm[i].y*video.videoHeight,r),tip?4:2.5,0,Math.PI*2);
+      ctx.fill();
+    }
+  }
+}
+
+// ── Foto ──────────────────────────────────────────────────────────────────
+function takePhoto(){
+  flashEl.style.transition='none';flashEl.style.opacity='.8';
+  setTimeout(()=>{flashEl.style.transition='opacity .3s';flashEl.style.opacity='0';},80);
+  const s=document.createElement('canvas');
+  s.width=video.videoWidth;s.height=video.videoHeight;
+  const sc=s.getContext('2d');
+  sc.save();sc.scale(-1,1);sc.drawImage(video,-s.width,0,s.width,s.height);sc.restore();
+  sc.save();sc.scale(-1,1);sc.drawImage(canvas,-s.width,0,s.width,s.height);sc.restore();
+  const a=document.createElement('a');
+  a.download='ai-'+new Date().toISOString().slice(0,19).replace(/[:.]/g,'-')+'.jpg';
+  a.href=s.toDataURL('image/jpeg',.92);a.click();
+}
+
+// ── Zoom ──────────────────────────────────────────────────────────────────
+document.querySelectorAll('.zb').forEach(btn=>{
+  btn.addEventListener('click',async()=>{
+    const z=parseFloat(btn.dataset.z);
+    currentZoom=z;
+    document.querySelectorAll('.zb').forEach(b=>b.classList.toggle('on',b===btn));
+    if(!stream)return;
+    const track=stream.getVideoTracks()[0];
+    if(!track)return;
+    try{
+      const caps=track.getCapabilities?track.getCapabilities():{};
+      if(caps.zoom){
+        const mn=caps.zoom.min||1,mx=caps.zoom.max||10;
+        await track.applyConstraints({advanced:[{zoom:mn+(z-1)*(mx-mn)/9}]});
+        video.style.transform='scaleX(-1)';
+        canvas.style.transform='none';
+      }else throw '';
+    }catch(e){
+      video.style.transform=`scaleX(-1) scale(${z})`;
+      canvas.style.transform=`scale(${z})`;
+      canvas.style.transformOrigin='center';
+    }
+  });
+});
+
+// ── Claude API — přesné rozpoznání ───────────────────────────────────────
+const claudeBtn   = document.getElementById('claudeBtn');
+const claudeResult= document.getElementById('claudeResult');
+const crText      = document.getElementById('crText');
+const crClose     = document.getElementById('crClose');
+const apiKeyWrap  = document.getElementById('apiKeyWrap');
+const apiKeyInput = document.getElementById('apiKeyInput');
+const apiKeySave  = document.getElementById('apiKeySave');
+
+let apiKey = '';
+try { apiKey = localStorage.getItem('anthropic_key') || ''; } catch(e){}
+
+function getApiKey(){
+  return new Promise(res=>{
+    if(apiKey){ res(apiKey); return; }
+    apiKeyWrap.style.display='block';
+    apiKeySave.onclick=()=>{
+      const k=apiKeyInput.value.trim();
+      if(!k) return;
+      apiKey=k;
+      try{localStorage.setItem('anthropic_key',k);}catch(e){}
+      apiKeyWrap.style.display='none';
+      res(k);
+    };
+  });
+}
+
+async function claudeScan(){
+  if(claudeBtn.classList.contains('loading')) return;
+  const key = await getApiKey();
+  claudeBtn.classList.add('loading');
+  claudeResult.style.display='block';
+  crText.textContent='Analyzuji snímek...';
+
+  // Vyfotit aktuální snímek
+  const snap=document.createElement('canvas');
+  snap.width=video.videoWidth; snap.height=video.videoHeight;
+  const sc=snap.getContext('2d');
+  sc.save(); sc.scale(-1,1); sc.drawImage(video,-snap.width,0,snap.width,snap.height); sc.restore();
+  // Nakresli i rámečky
+  sc.save(); sc.scale(-1,1); sc.drawImage(canvas,-snap.width,0,snap.width,snap.height); sc.restore();
+  const b64=snap.toDataURL('image/jpeg',.75).split(',')[1];
+
+  try{
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'x-api-key':key,
+        'anthropic-version':'2023-06-01',
+        'anthropic-dangerous-direct-browser-access':'true'
+      },
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:300,
+        messages:[{
+          role:'user',
+          content:[
+            {type:'image',source:{type:'base64',media_type:'image/jpeg',data:b64}},
+            {type:'text',text:'Popiš co přesně vidíš na tomto snímku z kamery. Zaměř se na:\n1. Auta — přesná značka, model, rok výroby, barva\n2. Osoby — počet, co dělají, oblečení\n3. Zbraně nebo airsoft repliky — typ a model\nOdpověz stručně v češtině, max 5 řádků, bez markdown.'}
+          ]
+        }]
+      })
+    });
+    const data=await resp.json();
+    if(data.error){
+      crText.textContent='⚠️ Chyba API: '+data.error.message;
+      if(data.error.type==='authentication_error'){ apiKey=''; try{localStorage.removeItem('anthropic_key');}catch(e){} }
+    }else{
+      crText.textContent=data.content?.[0]?.text||'Bez výsledku';
+    }
+  }catch(e){
+    crText.textContent='⚠️ Chyba: '+e.message;
+  }
+  claudeBtn.classList.remove('loading');
+}
+
+claudeBtn.addEventListener('click', claudeScan);
+crClose.addEventListener('click',()=>{ claudeResult.style.display='none'; });
+
+// ── Nahrávání videa ───────────────────────────────────────────────────────
+const recBtn   = document.getElementById('recBtn');
+const recTimer = document.getElementById('recTimer');
+const recTime  = document.getElementById('recTime');
+let mediaRecorder = null;
+let recChunks     = [];
+let recInterval   = null;
+let recSeconds    = 0;
+
+// Nahrává video + canvas overlay dohromady přes offscreen canvas
+function startRecording(){
+  if(!stream) return;
+
+  // Vytvoř composite stream — video + canvas overlay
+  const fps = 24;
+  const recCanvas = document.createElement('canvas');
+  recCanvas.width  = video.videoWidth  || 960;
+  recCanvas.height = video.videoHeight || 540;
+  const rc = recCanvas.getContext('2d');
+
+  // Kreslí composite snímky
+  const compositeInterval = setInterval(()=>{
+    if(!running){ clearInterval(compositeInterval); return; }
+    // Video (zrcadlené)
+    rc.save(); rc.scale(-1,1);
+    rc.drawImage(video,-recCanvas.width,0,recCanvas.width,recCanvas.height);
+    rc.restore();
+    // Canvas overlay (zrcadlené)
+    rc.save(); rc.scale(-1,1);
+    rc.drawImage(canvas,-recCanvas.width,0,recCanvas.width,recCanvas.height);
+    rc.restore();
+  }, 1000/fps);
+
+  const recStream = recCanvas.captureStream(fps);
+
+  // Zjisti podporovaný formát
+  const mime = ['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm','video/mp4']
+    .find(m=>MediaRecorder.isTypeSupported(m)) || 'video/webm';
+
+  mediaRecorder = new MediaRecorder(recStream, {mimeType: mime, videoBitsPerSecond: 2500000});
+  recChunks = [];
+
+  mediaRecorder.ondataavailable = e => { if(e.data.size>0) recChunks.push(e.data); };
+  mediaRecorder.onstop = () => {
+    clearInterval(compositeInterval);
+    const blob = new Blob(recChunks, {type: mime});
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    const ext  = mime.includes('mp4') ? 'mp4' : 'webm';
+    a.download = 'ai-video-'+new Date().toISOString().slice(0,19).replace(/[:.]/g,'-')+'.'+ext;
+    a.href = url; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  mediaRecorder.start(500); // chunk každých 500ms
+  recSeconds = 0;
+  recTime.textContent = '00:00';
+  recTimer.style.display = 'flex';
+  recBtn.classList.add('rec');
+  recBtn.textContent = '⏹';
+
+  recInterval = setInterval(()=>{
+    recSeconds++;
+    const m = String(Math.floor(recSeconds/60)).padStart(2,'0');
+    const s = String(recSeconds%60).padStart(2,'0');
+    recTime.textContent = m+':'+s;
+  }, 1000);
+}
+
+function stopRecording(){
+  if(mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+  clearInterval(recInterval);
+  recTimer.style.display = 'none';
+  recBtn.classList.remove('rec');
+  recBtn.textContent = '⏺';
+}
+
+recBtn.addEventListener('click',()=>{
+  if(recBtn.classList.contains('rec')) stopRecording();
+  else startRecording();
+});
+
+// ── Events ────────────────────────────────────────────────────────────────
+startBtn.addEventListener('click',startCamera);
+camToggle.addEventListener('click',()=>{
+  facingMode=facingMode==='user'?'environment':'user';
+  ageHistory=[];cachedAnalysis=[];startCamera();
+});
+photoBtn.addEventListener('click',takePhoto);
+window.addEventListener('resize',()=>{canvasW=0;});
+
+// ── Net status ────────────────────────────────────────────────────────────
+function updateNet(){
+  if(navigator.onLine){
+    netEl.className='on';netEl.textContent='✓ Online';
+    setTimeout(()=>{netEl.style.display='none';},3000);
+  }else{
+    netEl.className='off';netEl.textContent='⚠️ Offline — potřebuji cache';
+  }
+}
+window.addEventListener('online',updateNet);
+window.addEventListener('offline',updateNet);
+updateNet();
+
+// ── Splash → Loading ──────────────────────────────────────────────────────
+const splash=document.getElementById('splash');
+const sfill=document.getElementById('splash-fill');
+requestAnimationFrame(()=>{sfill.style.width='100%';});
+setTimeout(()=>{
+  splash.classList.add('fade');
+  setTimeout(()=>{splash.style.display='none';loadModels();},550);
+},5000);
+</script>
+</body>
+</html>
