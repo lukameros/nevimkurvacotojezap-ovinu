@@ -355,6 +355,15 @@ function drawXhair(){
   const col='rgba(0,229,160,.8)',fad='rgba(0,229,160,.18)';
   const arm=24,gap=9;
 
+  // ROI zóna — kde aktivně hledá lidi (65% středu snímku)
+  const roiW2=w*0.65, roiH2=h*0.65;
+  xhCtx.strokeStyle='rgba(0,229,160,.07)';
+  xhCtx.lineWidth=1; xhCtx.setLineDash([2,8]);
+  xhCtx.strokeRect(cx-roiW2/2,cy-roiH2/2,roiW2,roiH2);
+  xhCtx.setLineDash([]);
+  xhCtx.font='8px system-ui'; xhCtx.fillStyle='rgba(0,229,160,.2)';
+  xhCtx.fillText('SCAN ZONE',cx-roiW2/2+4,cy-roiH2/2+10);
+
   // Kříž
   xhCtx.strokeStyle=col; xhCtx.lineWidth=1.5; xhCtx.lineCap='round';
   xhCtx.beginPath();
@@ -495,16 +504,16 @@ function drawLoop(){
   requestAnimationFrame(drawLoop);
 }
 
-// ── Detection loop — asynchronní, neblokuje kreslení ─────────────────────
-const detBuf=document.createElement('canvas');
-const detCtx=detBuf.getContext('2d');
-let detBusy=false;
+// ── Detection loop — ROI kolem křížku → rychlejší + přesnější ────────────
+const detBuf =document.createElement('canvas');
+const detCtx =detBuf.getContext('2d');
+const roiBuf =document.createElement('canvas');
+const roiCtx =roiBuf.getContext('2d');
+let detBusy=false, detCycle=0;
 
 function getInputSize(){
-  // A21 optimalizace — malý vstup = rychlá inference
   const z=parseFloat(document.querySelector('.zb.on')?.dataset.z||1);
-  if(z>=4) return 320; // zoom = menší lidi, větší vstup
-  return 224;          // blízko = malý vstup, rychlé
+  return z>=4?288:192; // ještě menší = rychlejší na A21
 }
 
 async function detLoop(){
@@ -512,26 +521,53 @@ async function detLoop(){
     if(!detBusy && cocoModel && video.readyState>=2){
       detBusy=true;
       try{
+        detCycle++;
         const W=getInputSize();
         const H=Math.round(W*(video.videoHeight/video.videoWidth));
-        detBuf.width=W; detBuf.height=H;
-        // Kontrast boost — GPU accelerated (CSS filter na canvas drawImage nefunguje,
-        // ale nastavíme globalCompositeOperation pro rychlý kontrast)
-        detCtx.drawImage(video,0,0,W,H);
+        const allDets=[];
 
-        const raw=await cocoModel.detect(detBuf,12,0.18);
-        const sx=video.videoWidth/W, sy=video.videoHeight/H;
-        const dets=raw
-          .filter(o=>o.class==='person')
-          .map(o=>({bbox:[o.bbox[0]*sx,o.bbox[1]*sy,o.bbox[2]*sx,o.bbox[3]*sy],score:o.score}));
-        updateTracks(dets);
+        // ── ROI kolem křížku — každý cyklus ──────────────────────────
+        // Vezmi 65% středu snímku (kde míří křížek)
+        const roiF=0.65;
+        const roiX=video.videoWidth*(1-roiF)/2;
+        const roiY=video.videoHeight*(1-roiF)/2;
+        const roiW=video.videoWidth*roiF;
+        const roiH=video.videoHeight*roiF;
+
+        roiBuf.width=W; roiBuf.height=Math.round(W*(roiH/roiW));
+        roiCtx.drawImage(video,roiX,roiY,roiW,roiH,0,0,roiBuf.width,roiBuf.height);
+        const rawRoi=await cocoModel.detect(roiBuf,8,0.16);
+        const sxR=roiW/roiBuf.width, syR=roiH/roiBuf.height;
+        for(const o of rawRoi){
+          if(o.class!=='person')continue;
+          allDets.push({bbox:[
+            o.bbox[0]*sxR+roiX,
+            o.bbox[1]*syR+roiY,
+            o.bbox[2]*sxR,
+            o.bbox[3]*syR
+          ],score:o.score});
+        }
+
+        // ── Celý snímek — každý 4. cyklus (záchytná síť pro okraje) ──
+        if(detCycle%4===0){
+          detBuf.width=W; detBuf.height=H;
+          detCtx.drawImage(video,0,0,W,H);
+          const rawFull=await cocoModel.detect(detBuf,10,0.20);
+          const sx=video.videoWidth/W, sy=video.videoHeight/H;
+          for(const o of rawFull){
+            if(o.class!=='person')continue;
+            allDets.push({bbox:[o.bbox[0]*sx,o.bbox[1]*sy,o.bbox[2]*sx,o.bbox[3]*sy],score:o.score});
+          }
+        }
+
+        updateTracks(allDets);
         detCount++; totalDets++;
         hudSize.textContent=W+'px';
       }catch(e){}
       detBusy=false;
     }
-    // Krátká pauza — nechá browser dýchat
-    await new Promise(r=>setTimeout(r,30));
+    // Žádný setTimeout — hned znovu po dokončení
+    await new Promise(r=>requestAnimationFrame(r));
   }
 }
 
