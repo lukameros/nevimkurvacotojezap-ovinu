@@ -94,6 +94,28 @@ body {
 #photoBtn:active { transform:translateX(-50%) scale(.9); }
 #flash { position:absolute; inset:0; z-index:50; background:#fff; pointer-events:none; opacity:0; }
 
+/* ── Record button ── */
+#recBtn {
+  position:absolute; bottom:20px; right:72px; z-index:20;
+  background:rgba(255,59,59,.15); border:2px solid rgba(255,59,59,.5);
+  border-radius:50%; width:48px; height:48px; font-size:20px;
+  cursor:pointer; display:none; align-items:center; justify-content:center; color:#ff3b3b;
+  transition:background .2s;
+}
+#recBtn.rec {
+  background:rgba(255,59,59,.35); border-color:#ff3b3b;
+  animation:recpulse 1s infinite;
+}
+@keyframes recpulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+#recTimer {
+  position:absolute; top:8px; left:50%; transform:translateX(-50%);
+  z-index:20; display:none; align-items:center; gap:6px;
+  background:rgba(0,0,0,.65); border:1px solid rgba(255,59,59,.4);
+  border-radius:20px; padding:4px 12px;
+  font-size:13px; font-weight:700; color:#ff4444; font-family:monospace;
+}
+#recDot { width:8px; height:8px; border-radius:50%; background:#ff3b3b; animation:recpulse 1s infinite; }
+
 /* ── Zoom bar ── */
 #zoomBar {
   position:absolute; bottom:90px; left:50%; transform:translateX(-50%);
@@ -178,6 +200,8 @@ body {
   <button id="startBtn">Zapnout kameru</button>
   <div id="camToggle">⟳</div>
   <div id="photoBtn">📷</div>
+  <div id="recBtn" title="Nahrávat">⏺</div>
+  <div id="recTimer"><div id="recDot"></div><span id="recTime">00:00</span></div>
   <div id="flash"></div>
 
   <div id="zoomBar">
@@ -390,11 +414,9 @@ async function loadModels(){
     ltxt.textContent='Věk & pohlaví...';
     await faceapi.nets.ageGenderNet.loadFromUri(FACE_MODEL); pfill.style.width='46%';
     ltxt.textContent='Emoce...';
-    await faceapi.nets.faceExpressionNet.loadFromUri(FACE_MODEL); pfill.style.width='62%';
-    ltxt.textContent='Landmarky...';
-    await faceapi.nets.faceLandmark68Net.loadFromUri(FACE_MODEL); pfill.style.width='76%';
+    await faceapi.nets.faceExpressionNet.loadFromUri(FACE_MODEL); pfill.style.width='66%';
     ltxt.textContent='Detektor osob & aut...';
-    cocoModel=await cocoSsd.load({base:'mobilenet_v2'}); pfill.style.width='90%';
+    cocoModel=await cocoSsd.load({base:'lite_mobilenet_v2'}); pfill.style.width='88%';
     ltxt.textContent='Detektor rukou...';
     mpHands=await initHands(); pfill.style.width='100%';
     setTimeout(()=>{
@@ -431,6 +453,7 @@ async function startCamera(){
     });
     try{await video.play();}catch(e){await new Promise(r=>setTimeout(r,200));await video.play();}
     camToggle.style.display='flex'; photoBtn.style.display='flex';
+    recBtn.style.display='flex';
     zoomBar.style.display='flex'; legend.style.display='flex'; fpsEl.style.display='block';
     statusEl.textContent='Hledám...';
     ageHistory=[];cachedAnalysis=[];running=true;starting=false;
@@ -482,12 +505,12 @@ async function faceLoop(){
   if(!fR&&video.readyState>=2){
     fR=true;
     try{
-      const o=new faceapi.TinyFaceDetectorOptions({inputSize:224,scoreThreshold:.25});
+      const o=new faceapi.TinyFaceDetectorOptions({inputSize:160,scoreThreshold:.3});
       fastFaces=await faceapi.detectAllFaces(video,o);
     }catch(e){fastFaces=[];}
     fR=false;
   }
-  setTimeout(()=>{if(running)faceLoop();},150);
+  setTimeout(()=>{if(running)faceLoop();},300); // bylo 150ms → 300ms
 }
 
 // ── 3. COCO — každých 400ms (pouze osoby a vozidla) ──────────────────────
@@ -497,21 +520,20 @@ async function cocoLoop(){
   if(!cR&&cocoModel&&video.readyState>=2){
     cR=true;
     try{
-      ccv.width=960;ccv.height=Math.round(960*(video.videoHeight/video.videoWidth));
+      ccv.width=480; // bylo 960 → 480, 4x rychlejší
+      ccv.height=Math.round(480*(video.videoHeight/video.videoWidth));
       cct.drawImage(video,0,0,ccv.width,ccv.height);
-      const raw=await cocoModel.detect(ccv,40,.22);
+      const raw=await cocoModel.detect(ccv,20,.3); // méně objektů, vyšší threshold
       const sx=video.videoWidth/ccv.width,sy=video.videoHeight/ccv.height;
-      // Filtruj jen osoby a vozidla
       cocoResults=raw
         .filter(o=>o.class==='person'||VEHICLES.includes(o.class))
         .map(o=>({...o,bbox:[o.bbox[0]*sx,o.bbox[1]*sy,o.bbox[2]*sx,o.bbox[3]*sy]}));
     }catch(e){cocoResults=[];}
     cR=false;
   }
-  setTimeout(()=>{if(running)cocoLoop();},400);
+  setTimeout(()=>{if(running)cocoLoop();},700); // bylo 400ms → 700ms
 }
 
-// ── 4. Ruce — každých 120ms ───────────────────────────────────────────────
 let hR=false;
 async function handsLoop(){
   if(!running){hR=false;return;}
@@ -520,7 +542,7 @@ async function handsLoop(){
     try{await mpHands.send({image:video});}catch(e){}
     hR=false;
   }
-  setTimeout(()=>{if(running)handsLoop();},120);
+  setTimeout(()=>{if(running)handsLoop();},250); // bylo 120ms → 250ms
 }
 
 // ── 5. Analýza věk/emoce — každých 900ms ─────────────────────────────────
@@ -528,15 +550,15 @@ async function analysisLoop(){
   if(!running)return;
   if(video.readyState>=2&&fastFaces.length>0){
     try{
-      const o=new faceapi.TinyFaceDetectorOptions({inputSize:320,scoreThreshold:.25});
-      const res=await faceapi.detectAllFaces(video,o).withFaceLandmarks().withFaceExpressions().withAgeAndGender();
+      const o=new faceapi.TinyFaceDetectorOptions({inputSize:224,scoreThreshold:.3});
+      const res=await faceapi.detectAllFaces(video,o).withFaceExpressions().withAgeAndGender();
       if(res.length>0){
         cachedAnalysis=res;
         showStats(res.reduce((a,b)=>a.detection.score>b.detection.score?a:b));
       }
     }catch(e){}
   }
-  setTimeout(()=>{if(running)analysisLoop();},900);
+  setTimeout(()=>{if(running)analysisLoop();},1500); // bylo 900ms → 1500ms
 }
 
 // ── Kreslení ──────────────────────────────────────────────────────────────
@@ -654,6 +676,88 @@ document.querySelectorAll('.zb').forEach(btn=>{
       canvas.style.transformOrigin='center';
     }
   });
+});
+
+// ── Nahrávání videa ───────────────────────────────────────────────────────
+const recBtn   = document.getElementById('recBtn');
+const recTimer = document.getElementById('recTimer');
+const recTime  = document.getElementById('recTime');
+let mediaRecorder = null;
+let recChunks     = [];
+let recInterval   = null;
+let recSeconds    = 0;
+
+// Nahrává video + canvas overlay dohromady přes offscreen canvas
+function startRecording(){
+  if(!stream) return;
+
+  // Vytvoř composite stream — video + canvas overlay
+  const fps = 24;
+  const recCanvas = document.createElement('canvas');
+  recCanvas.width  = video.videoWidth  || 960;
+  recCanvas.height = video.videoHeight || 540;
+  const rc = recCanvas.getContext('2d');
+
+  // Kreslí composite snímky
+  const compositeInterval = setInterval(()=>{
+    if(!running){ clearInterval(compositeInterval); return; }
+    // Video (zrcadlené)
+    rc.save(); rc.scale(-1,1);
+    rc.drawImage(video,-recCanvas.width,0,recCanvas.width,recCanvas.height);
+    rc.restore();
+    // Canvas overlay (zrcadlené)
+    rc.save(); rc.scale(-1,1);
+    rc.drawImage(canvas,-recCanvas.width,0,recCanvas.width,recCanvas.height);
+    rc.restore();
+  }, 1000/fps);
+
+  const recStream = recCanvas.captureStream(fps);
+
+  // Zjisti podporovaný formát
+  const mime = ['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm','video/mp4']
+    .find(m=>MediaRecorder.isTypeSupported(m)) || 'video/webm';
+
+  mediaRecorder = new MediaRecorder(recStream, {mimeType: mime, videoBitsPerSecond: 2500000});
+  recChunks = [];
+
+  mediaRecorder.ondataavailable = e => { if(e.data.size>0) recChunks.push(e.data); };
+  mediaRecorder.onstop = () => {
+    clearInterval(compositeInterval);
+    const blob = new Blob(recChunks, {type: mime});
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    const ext  = mime.includes('mp4') ? 'mp4' : 'webm';
+    a.download = 'ai-video-'+new Date().toISOString().slice(0,19).replace(/[:.]/g,'-')+'.'+ext;
+    a.href = url; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  mediaRecorder.start(500); // chunk každých 500ms
+  recSeconds = 0;
+  recTime.textContent = '00:00';
+  recTimer.style.display = 'flex';
+  recBtn.classList.add('rec');
+  recBtn.textContent = '⏹';
+
+  recInterval = setInterval(()=>{
+    recSeconds++;
+    const m = String(Math.floor(recSeconds/60)).padStart(2,'0');
+    const s = String(recSeconds%60).padStart(2,'0');
+    recTime.textContent = m+':'+s;
+  }, 1000);
+}
+
+function stopRecording(){
+  if(mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+  clearInterval(recInterval);
+  recTimer.style.display = 'none';
+  recBtn.classList.remove('rec');
+  recBtn.textContent = '⏺';
+}
+
+recBtn.addEventListener('click',()=>{
+  if(recBtn.classList.contains('rec')) stopRecording();
+  else startRecording();
 });
 
 // ── Events ────────────────────────────────────────────────────────────────
