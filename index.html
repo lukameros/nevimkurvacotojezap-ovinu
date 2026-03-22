@@ -3,125 +3,77 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>AI Kamera</title>
+<title>AI Kamera Lite</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
-html, body {
-  background:#0a0a0a; color:#fff;
-  font-family:system-ui,sans-serif;
-  width:100%; height:100%;
-  overflow:hidden;
-  /* Zabrání rotaci obsahu prohlížečem */
-}
 body {
-  display:flex; flex-direction:column;
-  height:100dvh;
+  background:#000; color:#fff;
+  font-family:system-ui,sans-serif;
+  height:100dvh; display:flex; flex-direction:column; overflow:hidden;
 }
 
-/* Landscape optimalizace */
-@media (orientation: landscape) {
-  #header { padding:4px 16px 3px; }
-  #header h1 { font-size:13px; }
-  #status { font-size:10px; margin-top:1px; }
-  #legend { bottom:10px; left:10px; gap:2px; }
-  .leg { font-size:9px; }
-  #camToggle { width:40px; height:40px; font-size:18px; bottom:10px; right:10px; }
-  #photoBtn { width:50px; height:50px; font-size:22px; bottom:10px; }
-  #fpsLabel { top:5px; right:8px; }
-  #statsPanel { top:6px; left:8px; padding:8px 10px; min-width:170px; }
-  .stat-label { font-size:10px; }
-  .stat-value { font-size:11px; }
+/* ── Splash ── */
+#splash {
+  position:fixed; inset:0; z-index:200; background:#000;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  transition:opacity .5s;
 }
+#splash.fade { opacity:0; pointer-events:none; }
+#splash-icon { font-size:56px; margin-bottom:12px; }
+#splash-title { font-size:24px; font-weight:700; letter-spacing:.5px; }
+#splash-sub { font-size:11px; color:rgba(255,255,255,.3); letter-spacing:3px; text-transform:uppercase; margin:6px 0 28px; }
+.sbadge {
+  padding:5px 16px; border-radius:20px; font-size:11px; font-weight:700;
+  letter-spacing:.5px; text-transform:uppercase; margin:4px 0;
+}
+.sb-green { background:rgba(0,229,160,.12); border:1px solid rgba(0,229,160,.4); color:#00e5a0; }
+.sb-red   { background:rgba(255,59,59,.1);  border:1px solid rgba(255,59,59,.35); color:#ff6b6b; }
+.sb-gold  { background:rgba(255,208,60,.1); border:1px solid rgba(255,208,60,.35); color:#ffd03c; }
+.sb-gray  { background:rgba(148,163,184,.1);border:1px solid rgba(148,163,184,.3); color:#94a3b8; }
+#splash-year { font-size:11px; color:rgba(255,255,255,.2); letter-spacing:3px; margin-top:20px; }
+#splash-bar { width:160px; height:2px; background:rgba(255,255,255,.08); border-radius:1px; overflow:hidden; margin-top:14px; }
+#splash-fill { height:100%; width:0%; background:rgba(255,255,255,.3); transition:width 5s linear; }
 
-#netBanner {
-  width:100%; padding:6px 16px; text-align:center;
-  font-size:11px; font-weight:600; flex-shrink:0; display:none;
-}
-#netBanner.offline { background:#7f1d1d; color:#fca5a5; display:block; }
-#netBanner.online  { background:#14532d; color:#86efac; display:block; }
-#header { width:100%; padding:10px 16px 7px; text-align:center; flex-shrink:0; }
+/* ── Header ── */
+#header { padding:10px 16px 7px; text-align:center; flex-shrink:0; }
 #header h1 { font-size:15px; font-weight:600; }
 #status { font-size:11px; color:#888; margin-top:2px; min-height:15px; }
+
+@media (orientation:landscape) {
+  #header { padding:4px 16px 3px; }
+  #header h1 { font-size:13px; }
+  #status { font-size:10px; }
+}
+
+/* ── Camera ── */
 #container { position:relative; width:100%; flex:1; overflow:hidden; }
+#video { position:absolute; width:100%; height:100%; object-fit:cover; transform:scaleX(-1); }
+#canvas { position:absolute; width:100%; height:100%; z-index:2; }
 
-/* Video — CSS zrcadlení pro selfie kameru */
-#video {
-  position:absolute; width:100%; height:100%;
-  object-fit:cover; transform:scaleX(-1);
-}
-/* Canvas — BEZ CSS transformace! Zrcadlení řešíme v JS */
-#canvas {
-  position:absolute; width:100%; height:100%;
-  z-index:2;
-}
-
-/* Stats panel */
-#statsPanel {
+/* ── Stats panel ── */
+#stats {
   position:absolute; top:10px; left:10px; z-index:30;
-  background:rgba(0,0,0,0.75); border:1px solid rgba(255,255,255,0.12);
-  border-radius:12px; padding:11px 13px; min-width:195px;
-  backdrop-filter:blur(8px); display:none; opacity:0;
-  transform:translateY(-6px); pointer-events:none;
-  transition:opacity 0.25s, transform 0.25s;
+  background:rgba(0,0,0,.78); border:1px solid rgba(255,255,255,.12);
+  border-radius:12px; padding:12px 14px; min-width:190px;
+  display:none; opacity:0; transform:translateY(-6px);
+  transition:opacity .25s, transform .25s; pointer-events:none;
 }
-#statsPanel.visible { display:block; opacity:1; transform:translateY(0); }
-#statsPanel.hiding  { display:block; opacity:0; transform:translateY(-6px); }
-.stats-title { font-size:10px; font-weight:600; color:rgba(255,255,255,0.4); letter-spacing:1px; text-transform:uppercase; margin-bottom:8px; padding-bottom:6px; border-bottom:1px solid rgba(255,255,255,0.08); }
-.stat-row { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:3px 0; }
-.stat-label { font-size:11px; color:rgba(255,255,255,0.45); }
-.stat-value { font-size:12px; font-weight:600; color:#fff; text-align:right; }
-.stat-value.r { color:#ff6b6b; } .stat-value.g { color:#00e5a0; } .stat-value.y { color:#ffd060; }
-.ebar-wrap { margin-top:7px; padding-top:7px; border-top:1px solid rgba(255,255,255,0.08); }
-.ebar-title { font-size:10px; color:rgba(255,255,255,0.4); font-weight:600; letter-spacing:.8px; text-transform:uppercase; margin-bottom:4px; }
-.ebar-row { display:flex; align-items:center; gap:5px; margin-bottom:2px; }
-.ebar-name { font-size:10px; color:rgba(255,255,255,0.5); width:70px; flex-shrink:0; }
-.ebar-track { flex:1; height:4px; background:rgba(255,255,255,0.08); border-radius:2px; overflow:hidden; }
-.ebar-fill { height:100%; border-radius:2px; transition:width .3s; }
-.ebar-pct { font-size:9px; color:rgba(255,255,255,0.4); width:26px; text-align:right; }
+#stats.show { display:block; opacity:1; transform:none; }
+#stats.hide { display:block; opacity:0; transform:translateY(-6px); }
+.st { font-size:10px; font-weight:600; color:rgba(255,255,255,.35); letter-spacing:1px; text-transform:uppercase; margin-bottom:8px; padding-bottom:6px; border-bottom:1px solid rgba(255,255,255,.07); }
+.sr { display:flex; justify-content:space-between; padding:3px 0; }
+.sl { font-size:11px; color:rgba(255,255,255,.45); }
+.sv { font-size:12px; font-weight:600; }
+.sv.r { color:#ff6b6b; } .sv.g { color:#00e5a0; } .sv.y { color:#ffd060; }
+.eb-wrap { margin-top:7px; padding-top:7px; border-top:1px solid rgba(255,255,255,.07); }
+.eb-t { font-size:9px; color:rgba(255,255,255,.35); font-weight:600; letter-spacing:.8px; text-transform:uppercase; margin-bottom:4px; }
+.eb-r { display:flex; align-items:center; gap:5px; margin-bottom:3px; }
+.eb-n { font-size:10px; color:rgba(255,255,255,.5); width:70px; flex-shrink:0; }
+.eb-tr { flex:1; height:4px; background:rgba(255,255,255,.07); border-radius:2px; overflow:hidden; }
+.eb-f { height:100%; border-radius:2px; transition:width .3s; }
+.eb-p { font-size:9px; color:rgba(255,255,255,.35); width:26px; text-align:right; }
 
-/* Zoom bar */
-#zoomBar {
-  position:absolute; bottom:90px; left:50%; transform:translateX(-50%);
-  z-index:20; display:none; align-items:center; gap:6px;
-  background:rgba(0,0,0,0.55); border:1px solid rgba(255,255,255,0.15);
-  border-radius:30px; padding:6px 12px; backdrop-filter:blur(6px);
-}
-.zoom-btn {
-  background:transparent; border:none; color:rgba(255,255,255,0.7);
-  font-size:13px; font-weight:700; cursor:pointer; padding:4px 8px;
-  border-radius:16px; transition:background .15s;
-  white-space:nowrap;
-}
-.zoom-btn.active { background:rgba(255,255,255,0.25); color:#fff; }
-.zoom-btn:active { transform:scale(0.92); }
-
-/* Night mode overlay */
-#nightOverlay {
-  position:absolute; inset:0; z-index:3; pointer-events:none;
-  display:none; mix-blend-mode:multiply;
-}
-#nightOverlay.on { display:block; }
-
-/* Night toggle btn */
-#nightBtn {
-  position:absolute; top:8px; left:50%; transform:translateX(-50%);
-  z-index:20; display:none; align-items:center; justify-content:center;
-  gap:5px; background:rgba(0,0,0,0.55); border:1px solid rgba(255,255,255,0.2);
-  border-radius:20px; padding:5px 12px; font-size:11px; font-weight:600;
-  cursor:pointer; color:rgba(255,255,255,0.7); white-space:nowrap;
-}
-#nightBtn.on { border-color:rgba(255,208,60,.6); color:#ffd03c; }
-
-/* Sensitivity slider */
-#sensitPanel {
-  position:absolute; bottom:90px; right:14px; z-index:20; display:none;
-  flex-direction:column; align-items:flex-end; gap:4px;
-}
-#sensitPanel label { font-size:10px; color:rgba(255,255,255,0.5); text-align:right; }
-#sensitSlider { width:100px; accent-color:#00e5a0; }
-#sensitVal { font-size:11px; font-weight:700; color:#00e5a0; min-width:32px; text-align:right; }
-
-/* Buttons */
+/* ── Buttons ── */
 #startBtn {
   position:absolute; z-index:20; top:50%; left:50%; transform:translate(-50%,-50%);
   background:#fff; color:#000; border:none; border-radius:50px;
@@ -129,102 +81,74 @@ body {
 }
 #camToggle {
   position:absolute; bottom:20px; right:16px; z-index:20;
-  background:rgba(255,255,255,0.13); border:1px solid rgba(255,255,255,0.25);
+  background:rgba(255,255,255,.13); border:1px solid rgba(255,255,255,.25);
   border-radius:50%; width:48px; height:48px; font-size:22px;
   cursor:pointer; display:none; align-items:center; justify-content:center; color:#fff;
 }
 #photoBtn {
   position:absolute; bottom:16px; left:50%; transform:translateX(-50%); z-index:20;
-  background:rgba(255,255,255,0.15); border:2.5px solid rgba(255,255,255,0.7);
+  background:rgba(255,255,255,.15); border:2.5px solid rgba(255,255,255,.7);
   border-radius:50%; width:60px; height:60px; font-size:26px;
   cursor:pointer; display:none; align-items:center; justify-content:center; color:#fff;
 }
-#photoBtn:active { transform:translateX(-50%) scale(0.88); }
-#flashOverlay { position:absolute; inset:0; z-index:50; background:#fff; pointer-events:none; opacity:0; }
-#flashOverlay.flash { opacity:.75; transition:none; }
+#photoBtn:active { transform:translateX(-50%) scale(.9); }
+#flash { position:absolute; inset:0; z-index:50; background:#fff; pointer-events:none; opacity:0; }
 
-/* Legend */
+/* ── Zoom bar ── */
+#zoomBar {
+  position:absolute; bottom:90px; left:50%; transform:translateX(-50%);
+  z-index:20; display:none; gap:4px; align-items:center;
+  background:rgba(0,0,0,.55); border:1px solid rgba(255,255,255,.15);
+  border-radius:30px; padding:5px 10px;
+}
+.zb { background:none; border:none; color:rgba(255,255,255,.65); font-size:13px; font-weight:700; cursor:pointer; padding:4px 8px; border-radius:14px; }
+.zb.on { background:rgba(255,255,255,.22); color:#fff; }
+
+/* ── Legend ── */
 #legend {
   position:absolute; bottom:20px; left:12px; z-index:20;
   display:none; flex-direction:column; gap:4px;
 }
-.leg { display:flex; align-items:center; gap:6px; font-size:10px; color:rgba(255,255,255,0.6); }
-.leg-dot { width:10px; height:10px; border-radius:2px; flex-shrink:0; }
+.lg { display:flex; align-items:center; gap:6px; font-size:10px; color:rgba(255,255,255,.6); }
+.ld { width:10px; height:10px; border-radius:2px; }
 
-#fpsLabel {
-  position:absolute; top:8px; right:10px; z-index:20;
-  font-size:10px; color:rgba(255,255,255,0.3); font-family:monospace; display:none;
-}
+#fps { position:absolute; top:8px; right:10px; z-index:20; font-size:10px; color:rgba(255,255,255,.3); font-family:monospace; display:none; }
 
-/* ── Splash screen ────────────────────────────────────────────────────── */
-#splash {
-  position:absolute; inset:0; z-index:200;
-  background:#000;
-  display:flex; flex-direction:column;
-  align-items:center; justify-content:center; gap:0;
-  transition:opacity .6s ease;
-}
-#splash.fade { opacity:0; pointer-events:none; }
-#splash-logo { font-size:52px; margin-bottom:10px; }
-#splash-title { font-size:22px; font-weight:700; letter-spacing:1px; margin-bottom:4px; }
-#splash-sub { font-size:12px; color:rgba(255,255,255,0.35); letter-spacing:2px; text-transform:uppercase; margin-bottom:28px; }
-#splash-badges { display:flex; flex-direction:column; gap:8px; align-items:center; margin-bottom:32px; }
-.sbadge {
-  padding:5px 14px; border-radius:20px; font-size:11px; font-weight:700;
-  letter-spacing:.5px; text-transform:uppercase;
-}
-.sbadge.a { background:rgba(0,229,160,.12); border:1px solid rgba(0,229,160,.4); color:#00e5a0; }
-.sbadge.b { background:rgba(255,59,59,.1);  border:1px solid rgba(255,59,59,.35); color:#ff6b6b; }
-.sbadge.c { background:rgba(255,208,60,.1); border:1px solid rgba(255,208,60,.35); color:#ffd03c; }
-.sbadge.d { background:rgba(148,163,184,.1);border:1px solid rgba(148,163,184,.3); color:#94a3b8; }
-#splash-year { font-size:11px; color:rgba(255,255,255,0.2); letter-spacing:3px; margin-top:4px; }
-#splash-bar { width:160px; height:2px; background:rgba(255,255,255,0.08); border-radius:1px; overflow:hidden; margin-top:20px; }
-#splash-bar-fill { height:100%; width:0%; background:rgba(255,255,255,0.25); transition:width 5s linear; }
-
-/* ── Update modal ─────────────────────────────────────────────────────── */
-#updateModal {
-  position:absolute; inset:0; z-index:100;
-  background:rgba(0,0,0,0.88); display:none;
-  align-items:center; justify-content:center;
-  backdrop-filter:blur(4px);
-}
-#updateModal.show { display:flex; }
-#updateBox {
-  background:#111; border:1px solid rgba(255,255,255,0.15);
-  border-radius:16px; padding:22px 20px; width:88%; max-width:340px;
-  max-height:80vh; overflow-y:auto;
-}
-#updateBox h2 { font-size:16px; font-weight:700; margin-bottom:3px; }
-#updateBox .ver { font-size:11px; color:#00e5a0; font-weight:700; margin-bottom:14px; display:block; letter-spacing:.5px; }
-#updateBox .section { font-size:10px; font-weight:600; color:rgba(255,255,255,0.35); letter-spacing:1px; text-transform:uppercase; margin:12px 0 5px; }
-#updateBox ul { list-style:none; padding:0; }
-#updateBox li { font-size:13px; color:rgba(255,255,255,0.8); padding:4px 0; border-bottom:1px solid rgba(255,255,255,0.06); }
-#updateBox li:last-child { border:none; }
-#updateBox li::before { content:'→ '; color:#00e5a0; }
-#updateClose {
-  width:100%; margin-top:16px; padding:13px;
-  background:#00e5a0; color:#000; border:none; border-radius:10px;
-  font-size:14px; font-weight:700; cursor:pointer; letter-spacing:.3px;
-}
-#updateClose:active { transform:scale(0.97); }
-
-/* Loader */
+/* ── Loader ── */
 #loader {
   position:absolute; z-index:30; top:50%; left:50%; transform:translate(-50%,-50%);
   display:flex; flex-direction:column; align-items:center; gap:12px;
 }
-.spinner { width:36px; height:36px; border:3px solid rgba(255,255,255,0.12); border-top-color:#fff; border-radius:50%; animation:spin .8s linear infinite; }
+.spin { width:36px; height:36px; border:3px solid rgba(255,255,255,.12); border-top-color:#fff; border-radius:50%; animation:spin .8s linear infinite; }
 @keyframes spin { to { transform:rotate(360deg); } }
-.spinner-text { font-size:12px; color:#777; text-align:center; max-width:220px; }
-#progressBar { width:180px; height:3px; background:rgba(255,255,255,0.1); border-radius:2px; overflow:hidden; }
-#progressFill { height:100%; background:#fff; border-radius:2px; width:0%; transition:width .4s; }
+.spin-t { font-size:12px; color:#777; text-align:center; max-width:220px; }
+#pbar { width:180px; height:3px; background:rgba(255,255,255,.1); border-radius:2px; overflow:hidden; }
+#pfill { height:100%; background:#fff; border-radius:2px; width:0%; transition:width .4s; }
+
+/* ── Net banner ── */
+#net { width:100%; padding:5px 16px; text-align:center; font-size:11px; font-weight:600; flex-shrink:0; display:none; }
+#net.off { background:#7f1d1d; color:#fca5a5; display:block; }
+#net.on  { background:#14532d; color:#86efac; display:block; }
 </style>
 </head>
 <body>
 
-<div id="netBanner"></div>
+<!-- Splash -->
+<div id="splash">
+  <div id="splash-icon">📷</div>
+  <div id="splash-title">AI Kamera Lite</div>
+  <div id="splash-sub">Detekce osob &amp; vozidel</div>
+  <div class="sbadge sb-green">✍ Created by Lukamer</div>
+  <div class="sbadge sb-red">🔒 Protected Lukcheat</div>
+  <div class="sbadge sb-gold">🔥 No Quality</div>
+  <div class="sbadge sb-gray">👁 AI Vision Lite</div>
+  <div id="splash-year">2026</div>
+  <div id="splash-bar"><div id="splash-fill"></div></div>
+</div>
+
+<div id="net"></div>
 <div id="header">
-  <h1>&#127909; AI Kamera</h1>
+  <h1>📷 AI Kamera Lite</h1>
   <div id="status">Načítám modely...</div>
 </div>
 
@@ -232,532 +156,217 @@ body {
   <video id="video" playsinline autoplay muted></video>
   <canvas id="canvas"></canvas>
 
-  <div id="statsPanel">
-    <div class="stats-title">&#128101; Analýza obličeje</div>
-    <div class="stat-row"><span class="stat-label">Věk</span><span class="stat-value r" id="st-age">—</span></div>
-    <div class="stat-row"><span class="stat-label">Pohlaví</span><span class="stat-value" id="st-gender">—</span></div>
-    <div class="stat-row"><span class="stat-label">Jistota</span><span class="stat-value g" id="st-conf">—</span></div>
-    <div class="stat-row"><span class="stat-label">Emoce</span><span class="stat-value y" id="st-emo">—</span></div>
-    <div class="ebar-wrap">
-      <div class="ebar-title">Emoce</div>
+  <!-- Stats panel obličeje -->
+  <div id="stats">
+    <div class="st">👤 Analýza obličeje</div>
+    <div class="sr"><span class="sl">Věk</span><span class="sv r" id="st-age">—</span></div>
+    <div class="sr"><span class="sl">Pohlaví</span><span class="sv" id="st-gen">—</span></div>
+    <div class="sr"><span class="sl">Jistota</span><span class="sv g" id="st-conf">—</span></div>
+    <div class="sr"><span class="sl">Emoce</span><span class="sv y" id="st-emo">—</span></div>
+    <div class="eb-wrap">
+      <div class="eb-t">Emoce</div>
       <div id="ebars"></div>
     </div>
   </div>
 
-  <div id="splash">
-    <div id="splash-logo">&#127909;</div>
-    <div id="splash-title">AI Kamera</div>
-    <div id="splash-sub">Inteligentní detekce</div>
-    <div id="splash-badges">
-      <div class="sbadge a">&#9997; Created by Lukamer</div>
-      <div class="sbadge b">&#128274; Protected Lukcheat</div>
-      <div class="sbadge c">&#128293; No Quality</div>
-      <div class="sbadge d">&#128065; AI Vision v0.7</div>
-    </div>
-    <div id="splash-year">2026</div>
-    <div id="splash-bar"><div id="splash-bar-fill"></div></div>
-  </div>
-
-  <div id="updateModal">
-    <div id="updateBox">
-      <h2>&#127909; AI Kamera</h2>
-      <span class="ver">verze 0.8 — Co je nového</span>
-
-      <div class="section">&#128640; Nové funkce</div>
-      <ul>
-        <li>MobileNet klasifikátor — 1000 tříd (jídlo, zvířata, věci...)</li>
-        <li>Jídlo: pizza, hamburger, sushi, zmrzlina a 50+ dalšího</li>
-        <li>Přesné názvy místo obecných — "Labrador" místo "Pes"</li>
-        <li>5 nezávislých AI smyček — 20+ fps místo 3fps</li>
-        <li>Detekce na dálku — COCO na 640px zmenšeném vstupu</li>
-      </ul>
-
-      <div class="section">&#128295; Vylepšení</div>
-      <ul>
-        <li>Věk mediánem z 30 hodnot — stabilní bez výkyvů</li>
-        <li>Popisky správně orientované při rotaci mobilu</li>
-        <li>Landscape optimalizace — UI se přizpůsobí</li>
-        <li>Cache klasifikace — neklasifikuje stejný objekt 2x</li>
-      </ul>
-
-      <div class="section">&#9881;&#65039; Technické</div>
-      <ul>
-        <li>Rychlá smyčka (rámečky) + pomalá (analýza 500ms)</li>
-        <li>face-api + COCO-SSD + MediaPipe Hands</li>
-        <li>100% offline po prvním načtení</li>
-      </ul>
-
-      <button id="updateClose">Rozumím, spustit kameru &#128247;</button>
-    </div>
-  </div>
-
   <div id="loader">
-    <div class="spinner"></div>
-    <div id="progressBar"><div id="progressFill"></div></div>
-    <div class="spinner-text" id="loaderText">Připravuji AI...</div>
+    <div class="spin"></div>
+    <div id="pbar"><div id="pfill"></div></div>
+    <div class="spin-t" id="ltxt">Připravuji...</div>
   </div>
 
   <button id="startBtn">Zapnout kameru</button>
-  <div id="camToggle">&#8635;</div>
-  <div id="photoBtn">&#128247;</div>
-  <div id="flashOverlay"></div>
-  <canvas id="nightOverlay"></canvas>
+  <div id="camToggle">⟳</div>
+  <div id="photoBtn">📷</div>
+  <div id="flash"></div>
 
   <div id="zoomBar">
-    <button class="zoom-btn active" data-zoom="1">1×</button>
-    <button class="zoom-btn" data-zoom="2">2×</button>
-    <button class="zoom-btn" data-zoom="3">3×</button>
-    <button class="zoom-btn" data-zoom="4">4×</button>
-    <button class="zoom-btn" data-zoom="6">6×</button>
-    <button class="zoom-btn" data-zoom="10">10×</button>
-  </div>
-
-  <div id="nightBtn">🌙 Noc</div>
-
-  <div id="sensitPanel">
-    <label>Citlivost detekce</label>
-    <div style="display:flex;align-items:center;gap:6px">
-      <input type="range" id="sensitSlider" min="5" max="60" value="22" step="1">
-      <span id="sensitVal">22%</span>
-    </div>
+    <button class="zb on" data-z="1">1×</button>
+    <button class="zb" data-z="2">2×</button>
+    <button class="zb" data-z="3">3×</button>
+    <button class="zb" data-z="4">4×</button>
+    <button class="zb" data-z="6">6×</button>
   </div>
 
   <div id="legend">
-    <div class="leg"><div class="leg-dot" style="background:#ff3b3b"></div>Obličej</div>
-    <div class="leg"><div class="leg-dot" style="background:#00e5a0"></div>Ruka</div>
-    <div class="leg"><div class="leg-dot" style="background:#ff8c00"></div>Osoba</div>
-    <div class="leg"><div class="leg-dot" style="background:#38bdf8"></div>Vozidlo</div>
-    <div class="leg"><div class="leg-dot" style="background:#a78bfa"></div>Zvíře</div>
-    <div class="leg"><div class="leg-dot" style="background:#ffd03c"></div>Objekt</div>
+    <div class="lg"><div class="ld" style="background:#ff3b3b"></div>Obličej</div>
+    <div class="lg"><div class="ld" style="background:#00e5a0"></div>Ruka</div>
+    <div class="lg"><div class="ld" style="background:#ff8c00"></div>Osoba</div>
+    <div class="lg"><div class="ld" style="background:#38bdf8"></div>Auto/vozidlo</div>
   </div>
-  <div id="fpsLabel">0 fps</div>
+  <div id="fps">0 fps</div>
 </div>
 
-<!-- Potlačit TF.js duplicate warningy -->
+<!-- Suppress TF.js warnings -->
 <script>
-const _warn = console.warn.bind(console);
+const _cw = console.warn.bind(console);
 console.warn = (...a) => {
-  const s = a[0] || '';
-  if (typeof s === 'string' && (
-    s.includes('already registered') ||
-    s.includes('already been set') ||
-    s.includes('Reusing existing backend')
-  )) return;
-  _warn(...a);
+  const s = String(a[0]||'');
+  if (s.includes('already registered')||s.includes('already been set')||s.includes('Reusing existing')) return;
+  _cw(...a);
 };
 </script>
-<!-- 1. TF.js standalone -->
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.21.0/dist/tf.min.js"></script>
-<!-- 2. COCO-SSD -->
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
-<!-- 3. MobileNet — 1000 tříd klasifikace -->
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.0/dist/mobilenet.min.js"></script>
-<!-- 4. face-api -->
 <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/dist/face-api.js"></script>
-<!-- 5. MediaPipe — nezávislý -->
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/hands.min.js" crossorigin="anonymous"></script>
 
 <script>
-const video      = document.getElementById('video');
-const canvas     = document.getElementById('canvas');
-const ctx        = canvas.getContext('2d');
-const statusEl   = document.getElementById('status');
-const startBtn   = document.getElementById('startBtn');
-const camToggle  = document.getElementById('camToggle');
-const photoBtn   = document.getElementById('photoBtn');
-const flashEl    = document.getElementById('flashOverlay');
-const fpsLabel   = document.getElementById('fpsLabel');
-const legend     = document.getElementById('legend');
-const loader     = document.getElementById('loader');
-const loaderText = document.getElementById('loaderText');
-const progFill   = document.getElementById('progressFill');
-const statsPanel = document.getElementById('statsPanel');
-const netBanner  = document.getElementById('netBanner');
+// ── DOM refs ──────────────────────────────────────────────────────────────
+const video   = document.getElementById('video');
+const canvas  = document.getElementById('canvas');
+const ctx     = canvas.getContext('2d');
+const statusEl= document.getElementById('status');
+const startBtn= document.getElementById('startBtn');
+const camToggle=document.getElementById('camToggle');
+const photoBtn= document.getElementById('photoBtn');
+const flashEl = document.getElementById('flash');
+const fpsEl   = document.getElementById('fps');
+const legend  = document.getElementById('legend');
+const loader  = document.getElementById('loader');
+const ltxt    = document.getElementById('ltxt');
+const pfill   = document.getElementById('pfill');
+const statsEl = document.getElementById('stats');
+const zoomBar = document.getElementById('zoomBar');
+const netEl   = document.getElementById('net');
 
 const FACE_MODEL = 'https://unpkg.com/@vladmandic/face-api@1.7.12/model';
 
-let facingMode = 'user', stream = null, running = false;
-let mpHands = null, cocoModel = null, mobileNetModel = null;
-// Cache klasifikace pro každý objekt (key = bbox hash)
-const classifyCache = new Map();
-let lastHandResults = [], cocoResults = [];
-let fastFaces = [], cachedAnalysis = [];
-let ageHistory = [], hideTimer = null;
-let lastTime = 0, frameCount = 0;
-let canvasW = 0, canvasH = 0;
-
-// ── MobileNet — překlad klíčových tříd do češtiny ───────────────────────
-const MN_CS = {
-  // Jídlo
-  'pizza':'🍕 Pizza','hamburger':'🍔 Hamburger','hotdog':'🌭 Hot dog',
-  'sandwich':'🥪 Sendvič','burrito':'🌯 Burrito','taco':'🌮 Taco',
-  'sushi':'🍣 Sushi','ice cream':'🍦 Zmrzlina','cake':'🎂 Dort',
-  'donut':'🍩 Donut','waffle':'🧇 Waffle','pancake':'🥞 Palačinka',
-  'french fries':'🍟 Hranolky','fried chicken':'🍗 Kuře','bacon':'🥓 Slanina',
-  'egg':'🥚 Vejce','cheese':'🧀 Sýr','bread':'🍞 Chleba',
-  'apple':'🍎 Jablko','banana':'🍌 Banán','orange':'🍊 Pomeranč',
-  'strawberry':'🍓 Jahoda','grape':'🍇 Hrozny','watermelon':'🍉 Meloun',
-  'lemon':'🍋 Citron','pineapple':'🍍 Ananas','mango':'🥭 Mango',
-  'broccoli':'🥦 Brokolice','carrot':'🥕 Mrkev','corn':'🌽 Kukuřice',
-  'potato':'🥔 Brambor','tomato':'🍅 Rajče','mushroom':'🍄 Houba',
-  'coffee':'☕ Káva','beer':'🍺 Pivo','wine':'🍷 Víno',
-  'cocktail':'🍹 Koktejl','juice':'🧃 Džus','milk':'🥛 Mléko',
-  'soup':'🍲 Polévka','salad':'🥗 Salát','pasta':'🍝 Těstoviny',
-  // Zvířata
-  'dog':'🐕 Pes','cat':'🐈 Kočka','bird':'🐦 Pták','fish':'🐟 Ryba',
-  'horse':'🐎 Kůň','cow':'🐄 Kráva','pig':'🐷 Prase','sheep':'🐑 Ovce',
-  'rabbit':'🐰 Králík','hamster':'🐹 Křeček','parrot':'🦜 Papoušek',
-  'eagle':'🦅 Orel','owl':'🦉 Sova','penguin':'🐧 Tučňák',
-  'bear':'🐻 Medvěd','lion':'🦁 Lev','tiger':'🐯 Tygr','fox':'🦊 Liška',
-  'wolf':'🐺 Vlk','deer':'🦌 Jelen','elephant':'🐘 Slon',
-  'giraffe':'🦒 Žirafa','zebra':'🦓 Zebra','monkey':'🐒 Opice',
-  'snake':'🐍 Had','turtle':'🐢 Želva','frog':'🐸 Žába',
-  'butterfly':'🦋 Motýl','bee':'🐝 Včela','ant':'🐜 Mravenec',
-  // Vozidla
-  'sports car':'🏎️ Sporťák','race car':'🏎️ Závoďák',
-  'jeep':'🚙 Jeep','pickup truck':'🛻 Pickup',
-  'ambulance':'🚑 Sanitka','fire engine':'🚒 Hasiči',
-  'police car':'🚓 Policie','taxi':'🚕 Taxi',
-  'school bus':'🚌 Školní bus','minibus':'🚐 Minibus',
-  'bicycle':'🚲 Kolo','motorcycle':'🏍️ Motorka',
-  'scooter':'🛵 Skútr','helicopter':'🚁 Vrtulník',
-  'airplane':'✈️ Letadlo','boat':'⛵ Loď','ship':'🚢 Loď',
-  // Elektronika
-  'laptop':'💻 Notebook','desktop computer':'🖥️ PC',
-  'smartphone':'📱 Smartphone','tablet':'📱 Tablet',
-  'camera':'📷 Fotoaparát','television':'📺 TV',
-  'headphones':'🎧 Sluchátka','keyboard':'⌨️ Klávesnice',
-  'mouse':'🖱️ Myš','printer':'🖨️ Tiskárna',
-  // Sport / výbava
-  'soccer ball':'⚽ Fotbal','basketball':'🏀 Basketbal',
-  'football':'🏈 Americký fotbal','tennis ball':'🎾 Tenis',
-  'baseball':'⚾ Baseball','volleyball':'🏐 Volejbal',
-  'bicycle helmet':'🪖 Helma','backpack':'🎒 Batoh',
-  'rifle':'🔫 Puška','pistol':'🔫 Pistole',
-  'knife':'🔪 Nůž','sword':'⚔️ Meč',
-  // Příroda
-  'tree':'🌳 Strom','palm tree':'🌴 Palma','flower':'🌸 Květ',
-  'mushroom':'🍄 Houba','grass':'🌿 Tráva','mountain':'⛰️ Hora',
-  // Oblečení
-  'shirt':'👕 Tričko','dress':'👗 Šaty','jacket':'🧥 Bunda',
-  'hat':'🎩 Klobouk','cap':'🧢 Čepice','sunglasses':'🕶️ Brýle',
-  'shoe':'👟 Bota','boot':'👢 Bota','bag':'👜 Taška',
-};
-
-// Klasifikace objektu přes MobileNet na ořezaném snímku
-const classifyCanvas = document.createElement('canvas');
-const classifyCtx = classifyCanvas.getContext('2d');
-classifyCanvas.width = 224; classifyCanvas.height = 224;
-
-async function classifyObject(bbox) {
-  if (!mobileNetModel) return null;
-  const [x,y,w,h] = bbox;
-  if (w < 30 || h < 30) return null; // příliš malé
-  try {
-    classifyCtx.drawImage(video, x, y, w, h, 0, 0, 224, 224);
-    const preds = await mobileNetModel.classify(classifyCanvas, 3);
-    if (!preds.length) return null;
-    const top = preds[0];
-    if (top.probability < 0.2) return null;
-    // Hledej překlad
-    const lc = top.className.toLowerCase();
-    for (const [key, val] of Object.entries(MN_CS)) {
-      if (lc.includes(key)) return { label: val, pct: Math.round(top.probability*100) };
-    }
-    // Zkrátit anglický název
-    const short = top.className.split(',')[0].trim();
-    return { label: short, pct: Math.round(top.probability*100) };
-  } catch(e) { return null; }
-}
-
-// ── COCO kategorie — VŠECHNY objekty ────────────────────────────────────
-const COCO = {
-  // Osoby
-  person:        { cs:'Osoba',        color:'#ff8c00', glow:'rgba(255,140,0,.18)',   group:'osoba' },
-  // Vozidla
-  bicycle:       { cs:'Kolo',         color:'#38bdf8', glow:'rgba(56,189,248,.18)',  group:'vozidlo' },
-  car:           { cs:'Auto',         color:'#38bdf8', glow:'rgba(56,189,248,.18)',  group:'vozidlo' },
-  motorcycle:    { cs:'Motorka',      color:'#38bdf8', glow:'rgba(56,189,248,.18)',  group:'vozidlo' },
-  airplane:      { cs:'Letadlo',      color:'#38bdf8', glow:'rgba(56,189,248,.18)',  group:'vozidlo' },
-  bus:           { cs:'Autobus',      color:'#38bdf8', glow:'rgba(56,189,248,.18)',  group:'vozidlo' },
-  train:         { cs:'Vlak',         color:'#38bdf8', glow:'rgba(56,189,248,.18)',  group:'vozidlo' },
-  truck:         { cs:'Nákladák',     color:'#38bdf8', glow:'rgba(56,189,248,.18)',  group:'vozidlo' },
-  boat:          { cs:'Loď',          color:'#38bdf8', glow:'rgba(56,189,248,.18)',  group:'vozidlo' },
-  // Zvířata
-  bird:          { cs:'Pták',         color:'#a78bfa', glow:'rgba(167,139,250,.18)', group:'zvíře' },
-  cat:           { cs:'Kočka',        color:'#a78bfa', glow:'rgba(167,139,250,.18)', group:'zvíře' },
-  dog:           { cs:'Pes',          color:'#a78bfa', glow:'rgba(167,139,250,.18)', group:'zvíře' },
-  horse:         { cs:'Kůň',          color:'#a78bfa', glow:'rgba(167,139,250,.18)', group:'zvíře' },
-  sheep:         { cs:'Ovce',         color:'#a78bfa', glow:'rgba(167,139,250,.18)', group:'zvíře' },
-  cow:           { cs:'Kráva',        color:'#a78bfa', glow:'rgba(167,139,250,.18)', group:'zvíře' },
-  elephant:      { cs:'Slon',         color:'#a78bfa', glow:'rgba(167,139,250,.18)', group:'zvíře' },
-  bear:          { cs:'Medvěd',       color:'#a78bfa', glow:'rgba(167,139,250,.18)', group:'zvíře' },
-  zebra:         { cs:'Zebra',        color:'#a78bfa', glow:'rgba(167,139,250,.18)', group:'zvíře' },
-  giraffe:       { cs:'Žirafa',       color:'#a78bfa', glow:'rgba(167,139,250,.18)', group:'zvíře' },
-  // Sport / outdoors
-  backpack:      { cs:'Batoh',        color:'#ffd03c', glow:'rgba(255,208,60,.18)',  group:'objekt' },
-  umbrella:      { cs:'Deštník',      color:'#ffd03c', glow:'rgba(255,208,60,.18)',  group:'objekt' },
-  handbag:       { cs:'Kabelka',      color:'#ffd03c', glow:'rgba(255,208,60,.18)',  group:'objekt' },
-  suitcase:      { cs:'Kufr',         color:'#ffd03c', glow:'rgba(255,208,60,.18)',  group:'objekt' },
-  'sports ball': { cs:'Míč/kulička',  color:'#ffd03c', glow:'rgba(255,208,60,.18)',  group:'objekt' },
-  'baseball bat':{ cs:'Pálka/tyč',    color:'#ffd03c', glow:'rgba(255,208,60,.18)',  group:'objekt' },
-  'baseball glove':{ cs:'Rukavice',   color:'#ffd03c', glow:'rgba(255,208,60,.18)',  group:'objekt' },
-  skateboard:    { cs:'Skateboard',   color:'#ffd03c', glow:'rgba(255,208,60,.18)',  group:'objekt' },
-  surfboard:     { cs:'Surf',         color:'#ffd03c', glow:'rgba(255,208,60,.18)',  group:'objekt' },
-  'tennis racket':{ cs:'Raketa',      color:'#ffd03c', glow:'rgba(255,208,60,.18)',  group:'objekt' },
-  frisbee:       { cs:'Frisbee',      color:'#ffd03c', glow:'rgba(255,208,60,.18)',  group:'objekt' },
-  skis:          { cs:'Lyže',         color:'#ffd03c', glow:'rgba(255,208,60,.18)',  group:'objekt' },
-  snowboard:     { cs:'Snowboard',    color:'#ffd03c', glow:'rgba(255,208,60,.18)',  group:'objekt' },
-  kite:          { cs:'Drak',         color:'#ffd03c', glow:'rgba(255,208,60,.18)',  group:'objekt' },
-  // Elektronika
-  'cell phone':  { cs:'Telefon',      color:'#34d399', glow:'rgba(52,211,153,.18)',  group:'tech' },
-  laptop:        { cs:'Notebook',     color:'#34d399', glow:'rgba(52,211,153,.18)',  group:'tech' },
-  tv:            { cs:'Televize',     color:'#34d399', glow:'rgba(52,211,153,.18)',  group:'tech' },
-  keyboard:      { cs:'Klávesnice',   color:'#34d399', glow:'rgba(52,211,153,.18)',  group:'tech' },
-  mouse:         { cs:'Myš',          color:'#34d399', glow:'rgba(52,211,153,.18)',  group:'tech' },
-  remote:        { cs:'Ovladač',      color:'#34d399', glow:'rgba(52,211,153,.18)',  group:'tech' },
-  // Nábytek / interiér
-  chair:         { cs:'Židle',        color:'#94a3b8', glow:'rgba(148,163,184,.18)', group:'nábytek' },
-  couch:         { cs:'Pohovka',      color:'#94a3b8', glow:'rgba(148,163,184,.18)', group:'nábytek' },
-  bed:           { cs:'Postel',       color:'#94a3b8', glow:'rgba(148,163,184,.18)', group:'nábytek' },
-  'dining table':{ cs:'Stůl',         color:'#94a3b8', glow:'rgba(148,163,184,.18)', group:'nábytek' },
-  toilet:        { cs:'Záchod',       color:'#94a3b8', glow:'rgba(148,163,184,.18)', group:'nábytek' },
-  // Potraviny
-  bottle:        { cs:'Lahev',        color:'#fb923c', glow:'rgba(251,146,60,.18)',  group:'věc' },
-  cup:           { cs:'Hrnek',        color:'#fb923c', glow:'rgba(251,146,60,.18)',  group:'věc' },
-  bowl:          { cs:'Miska',        color:'#fb923c', glow:'rgba(251,146,60,.18)',  group:'věc' },
-  knife:         { cs:'⚠️ Nůž',        color:'#ef4444', glow:'rgba(239,68,68,.25)',   group:'věc' },
-  fork:          { cs:'Vidlička',     color:'#fb923c', glow:'rgba(251,146,60,.18)',  group:'věc' },
-  spoon:         { cs:'Lžíce',        color:'#fb923c', glow:'rgba(251,146,60,.18)',  group:'věc' },
-  banana:        { cs:'Banán',        color:'#fb923c', glow:'rgba(251,146,60,.18)',  group:'věc' },
-  apple:         { cs:'Jablko',       color:'#fb923c', glow:'rgba(251,146,60,.18)',  group:'věc' },
-  pizza:         { cs:'Pizza',        color:'#fb923c', glow:'rgba(251,146,60,.18)',  group:'věc' },
-  cake:          { cs:'Dort',         color:'#fb923c', glow:'rgba(251,146,60,.18)',  group:'věc' },
-  // Venkovní
-  'fire hydrant':{ cs:'Hydrant',      color:'#f87171', glow:'rgba(248,113,113,.18)', group:'venkovní' },
-  'stop sign':   { cs:'Stop značka',  color:'#f87171', glow:'rgba(248,113,113,.18)', group:'venkovní' },
-  bench:         { cs:'Lavička',      color:'#94a3b8', glow:'rgba(148,163,184,.18)', group:'venkovní' },
-  'potted plant':{ cs:'Květina/strom',color:'#4ade80', glow:'rgba(74,222,128,.18)',  group:'příroda' },
-  // Misc
-  book:          { cs:'Kniha',        color:'#fbbf24', glow:'rgba(251,191,36,.18)',  group:'věc' },
-  clock:         { cs:'Hodiny',       color:'#fbbf24', glow:'rgba(251,191,36,.18)',  group:'věc' },
-  vase:          { cs:'Váza',         color:'#fbbf24', glow:'rgba(251,191,36,.18)',  group:'věc' },
-  scissors:      { cs:'Nůžky',        color:'#fbbf24', glow:'rgba(251,191,36,.18)',  group:'věc' },
-  'teddy bear':  { cs:'Plyšák',       color:'#fbbf24', glow:'rgba(251,191,36,.18)',  group:'věc' },
-  'hair drier':  { cs:'Fén',          color:'#fbbf24', glow:'rgba(251,191,36,.18)',  group:'věc' },
-  toothbrush:    { cs:'Kartáček',     color:'#fbbf24', glow:'rgba(251,191,36,.18)',  group:'věc' },
-  'wine glass':  { cs:'Sklenička',    color:'#fbbf24', glow:'rgba(251,191,36,.18)',  group:'věc' },
-  'traffic light':{ cs:'Semafor',     color:'#f87171', glow:'rgba(248,113,113,.18)', group:'venkovní' },
-};
+// ── State ─────────────────────────────────────────────────────────────────
+let stream=null, running=false, starting=false, facingMode='user';
+let mpHands=null, cocoModel=null;
+let fastFaces=[], cocoResults=[], cachedAnalysis=[], lastHandResults=[];
+let ageHistory=[], hideTimer=null;
+let canvasW=0, canvasH=0;
+let frameCount=0, lastTime=0;
+let currentZoom=1;
 
 // ── Emoce ─────────────────────────────────────────────────────────────────
 const EM = {
-  happy:     { cs:'Šťastný',    e:'😊', c:'#ffd060' },
-  sad:       { cs:'Smutný',     e:'😢', c:'#6ab0ff' },
-  angry:     { cs:'Naštvaný',   e:'😠', c:'#ff6060' },
-  surprised: { cs:'Překvapený', e:'😲', c:'#ff9f40' },
-  fearful:   { cs:'Vystrašený', e:'😨', c:'#c084fc' },
-  disgusted: { cs:'Znechucený', e:'🤢', c:'#86efac' },
-  neutral:   { cs:'Neutrální',  e:'😐', c:'#aaa'    },
+  happy:    {cs:'Šťastný',  e:'😊', c:'#ffd060'},
+  sad:      {cs:'Smutný',   e:'😢', c:'#6ab0ff'},
+  angry:    {cs:'Naštvaný', e:'😠', c:'#ff6060'},
+  surprised:{cs:'Překvapen',e:'😲', c:'#ff9f40'},
+  fearful:  {cs:'Vystrašen',e:'😨', c:'#c084fc'},
+  disgusted:{cs:'Znechucen',e:'🤢', c:'#86efac'},
+  neutral:  {cs:'Neutrální',e:'😐', c:'#aaa'},
 };
 
 // ── Gesta ─────────────────────────────────────────────────────────────────
-function fingerStates(lm) {
-  const tips=[4,8,12,16,20], pips=[3,6,10,14,18], e=[];
-  e.push(lm[4].x < lm[3].x);
-  for(let i=1;i<5;i++) e.push(lm[tips[i]].y < lm[pips[i]].y);
+function fingers(lm){
+  const tips=[4,8,12,16,20],pips=[3,6,10,14,18],e=[];
+  e.push(lm[4].x<lm[3].x);
+  for(let i=1;i<5;i++) e.push(lm[tips[i]].y<lm[pips[i]].y);
   return e;
 }
-function dist(lm,a,b){ const dx=lm[a].x-lm[b].x,dy=lm[a].y-lm[b].y; return Math.sqrt(dx*dx+dy*dy); }
-function gesture(lm) {
-  const [th,ix,mi,ri,pi]=fingerStates(lm);
-  const n=[th,ix,mi,ri,pi].filter(Boolean).length;
-  const span=dist(lm,0,12);
-  if(dist(lm,4,8)<span*.25&&!mi&&!ri&&!pi) return{e:'🤙',n:'Srdíčko'};
-  if(dist(lm,4,8)<span*.22&&mi&&ri&&pi)    return{e:'👌',n:'OK'};
-  if(n===0)                                return{e:'✊',n:'Pěst'};
-  if(th&&!ix&&!mi&&!ri&&!pi)               return{e:'👍',n:'Palec nahoru'};
-  if(!th&&!ix&&mi&&!ri&&!pi)               return{e:'🖕',n:'Prostředník'};
-  if(!th&&ix&&mi&&!ri&&!pi)                return{e:'✌️',n:'Mír'};
-  if(!th&&ix&&!mi&&!ri&&pi)                return{e:'🤘',n:'Rock'};
-  if(!th&&ix&&!mi&&!ri&&!pi)               return{e:'👆',n:'Pointing'};
-  if(th&&!ix&&!mi&&!ri&&pi)                return{e:'🤙',n:'Zavolej'};
-  if(th&&ix&&mi&&ri&&pi)                   return{e:'🖐',n:'Otevřená ruka'};
-  if(!th&&ix&&mi&&ri&&pi)                  return{e:'🖖',n:'4 prsty'};
-  if(th&&ix&&!mi&&!ri&&pi)                 return{e:'🕷',n:'Spider-Man'};
+function d(lm,a,b){const dx=lm[a].x-lm[b].x,dy=lm[a].y-lm[b].y;return Math.sqrt(dx*dx+dy*dy);}
+function gesture(lm){
+  const [th,ix,mi,ri,pi]=fingers(lm),n=[th,ix,mi,ri,pi].filter(Boolean).length;
+  const sp=d(lm,0,12);
+  if(d(lm,4,8)<sp*.25&&!mi&&!ri&&!pi) return{e:'🤙',n:'Srdíčko'};
+  if(d(lm,4,8)<sp*.22&&mi&&ri&&pi)    return{e:'👌',n:'OK'};
+  if(n===0)                            return{e:'✊',n:'Pěst'};
+  if(th&&!ix&&!mi&&!ri&&!pi)           return{e:'👍',n:'Palec'};
+  if(!th&&!ix&&mi&&!ri&&!pi)           return{e:'🖕',n:'Prostředník'};
+  if(!th&&ix&&mi&&!ri&&!pi)            return{e:'✌️',n:'Mír'};
+  if(!th&&ix&&!mi&&!ri&&pi)            return{e:'🤘',n:'Rock'};
+  if(!th&&ix&&!mi&&!ri&&!pi)           return{e:'👆',n:'Pointing'};
+  if(th&&!ix&&!mi&&!ri&&pi)            return{e:'🤙',n:'Zavolej'};
+  if(th&&ix&&mi&&ri&&pi)               return{e:'🖐',n:'Ruka'};
   return{e:'✋',n:n+' prstů'};
 }
-function countFingers(lm){ return fingerStates(lm).filter(Boolean).length; }
 
-// ── Sledování aktivity osoby v čase ──────────────────────────────────────
-// Ukládáme aktivitu pro každou osobu podle pozice (approx tracking)
-const activityTrackers = []; // [{cx, cy, activity, startTime, lastSeen}]
-const TRACKER_TIMEOUT = 3000; // ms bez detekce = reset
-
-function getOrCreateTracker(cx, cy, actName) {
-  const now = Date.now();
-  // Odstraň staré trackery
-  for (let i = activityTrackers.length - 1; i >= 0; i--) {
-    if (now - activityTrackers[i].lastSeen > TRACKER_TIMEOUT)
-      activityTrackers.splice(i, 1);
-  }
-  // Najdi nejbližší existující tracker
-  let best = null, bestDist = Infinity;
-  for (const t of activityTrackers) {
-    const d = Math.hypot(cx - t.cx, cy - t.cy);
-    if (d < bestDist) { bestDist = d; best = t; }
-  }
-  // Pokud je dost blízko (stejná osoba), aktualizuj
-  if (best && bestDist < 120) {
-    best.cx = cx; best.cy = cy; best.lastSeen = now;
-    // Pokud se aktivita změnila, resetuj timer
-    if (best.activity !== actName) { best.activity = actName; best.startTime = now; }
-    return best;
-  }
-  // Nová osoba
-  const t = { cx, cy, activity: actName, startTime: now, lastSeen: now };
-  activityTrackers.push(t);
-  return t;
-}
-
-function formatDuration(ms) {
-  const s = Math.floor(ms / 1000);
-  if (s < 60) return s + 's';
-  const m = Math.floor(s / 60), rs = s % 60;
-  return m + 'm ' + (rs < 10 ? '0' : '') + rs + 's';
-}
-// ── Odhad vzdálenosti od kamery ───────────────────────────────────────────
-// Průměrná výška člověka ~170cm, typická ohnisková vzdálenost mobilní kamery ~700px
-const REAL_HEIGHT_CM = 170;
-const FOCAL_PX = 700;
-
-function estimateDistance(bboxH) {
-  if (!bboxH || bboxH < 1) return null;
-  const d = (REAL_HEIGHT_CM * FOCAL_PX) / bboxH;
-  if (d < 80)   return { text: Math.round(d) + ' cm',             color: '#ff4444' };
-  if (d < 300)  return { text: (Math.round(d/10)/10).toFixed(1) + ' m', color: '#ffd03c' };
-  if (d < 2000) return { text: (Math.round(d/10)/10).toFixed(1) + ' m', color: '#00e5a0' };
-  return         { text: '~' + Math.round(d/100) + '0 m',         color: '#94a3b8' };
-}
-
-function activity(bbox, all) {
-  const [px,py,pw,ph]=bbox, cx=px+pw/2, cy=py+ph/2;
-  const near=all.filter(o=>{
-    if(o.class==='person') return false;
-    const [ox,oy,ow,oh]=o.bbox;
-    return Math.hypot(cx-ox-ow/2,cy-oy-oh/2)<(pw+ph)*.8;
-  }).map(o=>o.class);
-  if(near.some(c=>['sports ball','tennis racket','baseball bat','frisbee','skis','snowboard','surfboard','skateboard'].includes(c))) return{e:'⚽',t:'Hraje sport'};
-  if(near.some(c=>['bicycle','motorcycle'].includes(c))) return{e:'🚴',t:'Na kole'};
-  if(near.some(c=>['car','truck','bus'].includes(c)))    return{e:'🚗',t:'U vozidla'};
-  if(near.includes('laptop')||near.includes('keyboard')) return{e:'💻',t:'U počítače'};
-  if(near.includes('cell phone'))                        return{e:'📱',t:'Na telefonu'};
-  if(near.some(c=>['backpack','suitcase','handbag'].includes(c))) return{e:'🎒',t:'Nese zavazadlo'};
-  const rel=(pw*ph)/(video.videoWidth*video.videoHeight);
-  if(rel<0.03) return{e:'🏃',t:'Dálka'};
-  if(rel<0.1)  return{e:'🚶',t:'Osoba'};
-  return{e:'👤',t:'Blízko'};
+// ── Vzdálenost osoby ──────────────────────────────────────────────────────
+function distLabel(bboxH, sy){
+  const cm=(170*700)/(bboxH*sy);
+  if(cm<80)   return{t:Math.round(cm)+'cm', c:'#ff4444'};
+  if(cm<3000) return{t:(Math.round(cm/10)/10).toFixed(1)+'m', c:cm<300?'#ffd03c':'#00e5a0'};
+  return      {t:'~'+Math.round(cm/100)+'0m', c:'#94a3b8'};
 }
 
 // ── Canvas helpers ────────────────────────────────────────────────────────
-function maybeResize() {
+function maybeResize(){
   const c=document.getElementById('container');
   if(c.offsetWidth!==canvasW||c.offsetHeight!==canvasH){
     canvasW=canvas.width=c.offsetWidth;
     canvasH=canvas.height=c.offsetHeight;
   }
 }
-function getR() {
+function getR(){
   const vw=video.videoWidth,vh=video.videoHeight,cw=canvas.width,ch=canvas.height;
   if(!vw||!vh) return{x:0,y:0,sx:1,sy:1,cw};
   const va=vw/vh,ca=cw/ch;
   let dw,dh;
   if(va>ca){dh=ch;dw=ch*va;}else{dw=cw;dh=cw/va;}
-  return{x:(cw-dw)/2,y:(ch-dh)/2,sx:dw/vw,sy:dh/vh,dw,cw};
+  return{x:(cw-dw)/2,y:(ch-dh)/2,sx:dw/vw,sy:dh/vh,cw};
 }
+// Zrcadlení X (video je CSS flipped, canvas ne)
+function vx(x,r){return r.cw-(r.x+x*r.sx);}
+function vy(y,r){return r.y+y*r.sy;}
+function toBox(x,y,w,h,r){return[vx(x+w,r),vy(y,r),w*r.sx,h*r.sy];}
 
-// Převod video X → canvas X (s zrcadlením, protože video je CSS flipped)
-function vx(x, r){ return r.cw - (r.x + x * r.sx); }
-function vy(y, r){ return r.y + y * r.sy; }
-
-function corners(bx,by,bw,bh,l,col){
+function drawCorners(bx,by,bw,bh,l,col){
   ctx.strokeStyle=col;ctx.lineWidth=3.5;ctx.lineCap='round';
   ctx.beginPath();
-  // Roh vlevo nahoře
   ctx.moveTo(bx,by+l);ctx.lineTo(bx,by);ctx.lineTo(bx+l,by);
-  // Roh vpravo nahoře
   ctx.moveTo(bx+bw-l,by);ctx.lineTo(bx+bw,by);ctx.lineTo(bx+bw,by+l);
-  // Roh vpravo dole
   ctx.moveTo(bx+bw,by+bh-l);ctx.lineTo(bx+bw,by+bh);ctx.lineTo(bx+bw-l,by+bh);
-  // Roh vlevo dole
   ctx.moveTo(bx+l,by+bh);ctx.lineTo(bx,by+bh);ctx.lineTo(bx,by+bh-l);
   ctx.stroke();
 }
-
-function pill(txt,bx,by,bg){
-  ctx.font='bold 15px system-ui,sans-serif';
-  const tw=ctx.measureText(txt).width+16;
-  ctx.fillStyle=bg;
-  ctx.fillRect(bx,by-24,tw,22);
-  ctx.fillStyle='#fff';
-  ctx.fillText(txt,bx+8,by-7);
-}
-
-function pillB(txt,bx,by_bh,bg){
-  ctx.font='bold 15px system-ui,sans-serif';
-  const tw=ctx.measureText(txt).width+16;
-  ctx.fillStyle=bg;
-  ctx.fillRect(bx,by_bh+3,tw,22);
-  ctx.fillStyle='#fff';
-  ctx.fillText(txt,bx+8,by_bh+18);
-}
-
-function pillR(txt,bx_bw,by,bg,col){
-  ctx.font='bold 15px system-ui,sans-serif';
-  const tw=ctx.measureText(txt).width+16;
-  ctx.fillStyle=bg;
-  ctx.fillRect(bx_bw-tw,by-24,tw,22);
-  ctx.fillStyle=col||'#fff';
-  ctx.fillText(txt,bx_bw-tw+8,by-7);
-}
-
 function box(bx,by,bw,bh,col,glow){
   ctx.strokeStyle=glow;ctx.lineWidth=10;ctx.strokeRect(bx,by,bw,bh);
   ctx.strokeStyle=col;ctx.lineWidth=2.5;ctx.strokeRect(bx,by,bw,bh);
-  corners(bx,by,bw,bh,Math.min(bw,bh)*.15,col);
+  drawCorners(bx,by,bw,bh,Math.min(bw,bh)*.15,col);
+}
+function pill(txt,bx,by,bg,fg){
+  ctx.font='bold 15px system-ui,sans-serif';
+  const tw=ctx.measureText(txt).width+16;
+  ctx.fillStyle=bg;ctx.fillRect(bx,by-24,tw,22);
+  ctx.fillStyle=fg||'#fff';ctx.fillText(txt,bx+8,by-7);
+}
+function pillB(txt,bx,by,bg,fg){
+  ctx.font='bold 15px system-ui,sans-serif';
+  const tw=ctx.measureText(txt).width+16;
+  ctx.fillStyle=bg;ctx.fillRect(bx,by+3,tw,22);
+  ctx.fillStyle=fg||'#fff';ctx.fillText(txt,bx+8,by+19);
+}
+function pillR(txt,bxw,by,bg,fg){
+  ctx.font='bold 14px system-ui,sans-serif';
+  const tw=ctx.measureText(txt).width+14;
+  ctx.fillStyle=bg;ctx.fillRect(bxw-tw,by-24,tw,22);
+  ctx.fillStyle=fg||'#fff';ctx.fillText(txt,bxw-tw+7,by-7);
 }
 
 // ── Stats panel ───────────────────────────────────────────────────────────
-function showStats(d) {
-  const age=Math.round(d.age);
-  ageHistory.push(age);
-  if(ageHistory.length>30) ageHistory.shift();
-  // Medián ze všech hodnot — odfiltruje výkyvy
+function showStats(d){
+  ageHistory.push(Math.round(d.age));
+  if(ageHistory.length>30)ageHistory.shift();
   const sorted=[...ageHistory].sort((a,b)=>a-b);
   const mid=Math.floor(sorted.length/2);
-  const median=sorted.length%2?sorted[mid]:Math.round((sorted[mid-1]+sorted[mid])/2);
-  document.getElementById('st-age').textContent=median+' let';
-  document.getElementById('st-gender').textContent=(d.gender==='male'?'👨 Muž':'👩 Žena')+' ('+Math.round(d.genderProbability*100)+'%)';
+  const age=sorted.length%2?sorted[mid]:Math.round((sorted[mid-1]+sorted[mid])/2);
+  document.getElementById('st-age').textContent=age+' let';
+  document.getElementById('st-gen').textContent=(d.gender==='male'?'👨 Muž':'👩 Žena')+' ('+Math.round(d.genderProbability*100)+'%)';
   document.getElementById('st-conf').textContent=Math.round(d.detection.score*100)+'%';
-  const expSorted=Object.entries(d.expressions).sort((a,b)=>b[1]-a[1]);
-  const [tk,tv]=expSorted[0]; const em=EM[tk]||{cs:tk,e:'',c:'#fff'};
-  const stEmo=document.getElementById('st-emo');
-  stEmo.textContent=em.e+' '+em.cs; stEmo.style.color=em.c;
-  const eb=document.getElementById('ebars'); eb.innerHTML='';
-  expSorted.slice(0,5).forEach(([k,v])=>{
+  const sorted2=Object.entries(d.expressions).sort((a,b)=>b[1]-a[1]);
+  const [tk,tv]=sorted2[0];const em=EM[tk]||{cs:tk,e:'',c:'#fff'};
+  const ste=document.getElementById('st-emo');
+  ste.textContent=em.e+' '+em.cs; ste.style.color=em.c;
+  const eb=document.getElementById('ebars');eb.innerHTML='';
+  sorted2.slice(0,5).forEach(([k,v])=>{
     const m=EM[k]||{cs:k,c:'#aaa'};
-    eb.innerHTML+=`<div class="ebar-row"><span class="ebar-name">${m.cs}</span><div class="ebar-track"><div class="ebar-fill" style="width:${Math.round(v*100)}%;background:${m.c}"></div></div><span class="ebar-pct">${Math.round(v*100)}%</span></div>`;
+    eb.innerHTML+=`<div class="eb-r"><span class="eb-n">${m.cs}</span><div class="eb-tr"><div class="eb-f" style="width:${Math.round(v*100)}%;background:${m.c}"></div></div><span class="eb-p">${Math.round(v*100)}%</span></div>`;
   });
   if(hideTimer){clearTimeout(hideTimer);hideTimer=null;}
-  statsPanel.classList.remove('hiding');
-  statsPanel.style.display='block';
-  requestAnimationFrame(()=>statsPanel.classList.add('visible'));
+  statsEl.classList.remove('hide');
+  statsEl.style.display='block';
+  requestAnimationFrame(()=>statsEl.classList.add('show'));
 }
 function hideStats(){
-  if(hideTimer) return;
+  if(hideTimer)return;
   hideTimer=setTimeout(()=>{
-    statsPanel.classList.remove('visible');statsPanel.classList.add('hiding');
-    setTimeout(()=>{statsPanel.style.display='none';statsPanel.classList.remove('hiding');hideTimer=null;},280);
+    statsEl.classList.remove('show');statsEl.classList.add('hide');
+    setTimeout(()=>{statsEl.style.display='none';statsEl.classList.remove('hide');hideTimer=null;},280);
   },800);
 }
 
@@ -773,253 +382,161 @@ function initHands(){
   });
 }
 
-// ── Foto ──────────────────────────────────────────────────────────────────
-function takePhoto(){
-  flashEl.classList.add('flash');
-  setTimeout(()=>{flashEl.style.transition='opacity .3s';flashEl.classList.remove('flash');setTimeout(()=>{flashEl.style.transition='';},350);},80);
-  const s=document.createElement('canvas');
-  s.width=video.videoWidth; s.height=video.videoHeight;
-  const sc=s.getContext('2d');
-  sc.save();sc.scale(-1,1);sc.drawImage(video,-s.width,0,s.width,s.height);sc.restore();
-  sc.save();sc.scale(-1,1);sc.drawImage(canvas,-s.width,0,s.width,s.height);sc.restore();
-  const a=document.createElement('a');
-  a.download='ai-kamera-'+new Date().toISOString().slice(0,19).replace(/[:.]/g,'-')+'.jpg';
-  a.href=s.toDataURL('image/jpeg',.92); a.click();
-}
-
 // ── Načítání modelů ───────────────────────────────────────────────────────
 async function loadModels(){
-  const URLS = [
-    'https://unpkg.com/@vladmandic/face-api@1.7.12/model',
-    'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/model',
-  ];
-
-  let modelUrl = null;
-  for (const url of URLS) {
-    try {
-      loaderText.textContent = 'Testuji CDN...';
-      const test = await fetch(url + '/tiny_face_detector_model-weights_manifest.json');
-      if (test.ok) { modelUrl = url; break; }
-    } catch(e) {}
-  }
-
-  if (!modelUrl) {
-    loader.style.display='none';
-    statusEl.textContent='❌ Nelze stáhnout modely — zkontroluj internet';
-    statusEl.style.color='#f87171';
-    return;
-  }
-
   try{
-    loaderText.textContent='Načítám detektor obličeje...'; progFill.style.width='8%';
-    await faceapi.nets.tinyFaceDetector.loadFromUri(modelUrl);   progFill.style.width='25%';
-    loaderText.textContent='Načítám věk & pohlaví...';
-    await faceapi.nets.ageGenderNet.loadFromUri(modelUrl);        progFill.style.width='42%';
-    loaderText.textContent='Načítám emoce...';
-    await faceapi.nets.faceExpressionNet.loadFromUri(modelUrl);   progFill.style.width='57%';
-    loaderText.textContent='Načítám landmarky...';
-    await faceapi.nets.faceLandmark68Net.loadFromUri(modelUrl);   progFill.style.width='70%';
-    loaderText.textContent='Načítám COCO detektor...';
-    cocoModel=await cocoSsd.load({base:'mobilenet_v2'});      progFill.style.width='87%';
-    loaderText.textContent='Načítám detektor rukou...';
-    mpHands=await initHands();                                     progFill.style.width='93%';
-    loaderText.textContent='Načítám klasifikátor objektů...';
-    mobileNetModel=await mobilenet.load({version:2,alpha:1.0});    progFill.style.width='100%';
+    ltxt.textContent='Detektor obličeje...'; pfill.style.width='10%';
+    await faceapi.nets.tinyFaceDetector.loadFromUri(FACE_MODEL); pfill.style.width='28%';
+    ltxt.textContent='Věk & pohlaví...';
+    await faceapi.nets.ageGenderNet.loadFromUri(FACE_MODEL); pfill.style.width='46%';
+    ltxt.textContent='Emoce...';
+    await faceapi.nets.faceExpressionNet.loadFromUri(FACE_MODEL); pfill.style.width='62%';
+    ltxt.textContent='Landmarky...';
+    await faceapi.nets.faceLandmark68Net.loadFromUri(FACE_MODEL); pfill.style.width='76%';
+    ltxt.textContent='Detektor osob & aut...';
+    cocoModel=await cocoSsd.load({base:'mobilenet_v2'}); pfill.style.width='90%';
+    ltxt.textContent='Detektor rukou...';
+    mpHands=await initHands(); pfill.style.width='100%';
     setTimeout(()=>{
       loader.style.display='none';
-      statusEl.textContent='Modely připraveny ✓';
+      statusEl.textContent='Připraveno ✓';
       startBtn.style.display='block';
-      showUpdateModal();
     },300);
   }catch(e){
     loader.style.display='none';
-    statusEl.textContent='Chyba: '+e.message;
-    statusEl.style.color='#f87171';
+    statusEl.textContent='⚠️ Chyba: '+e.message;
+    startBtn.style.display='block';
     console.error(e);
   }
 }
 
 // ── Kamera ────────────────────────────────────────────────────────────────
-let cameraStarting = false; // zabrání vícenásobnému spuštění
-
 async function startCamera(){
-  if (cameraStarting) return; // zabrání double-klik
-  cameraStarting = true;
-
-  // Zastav všechny běžící smyčky
-  running = false;
-  await new Promise(r => setTimeout(r, 80)); // počkej než smyčky doběhnou
-
-  // Uvolni předchozí stream
-  if (stream) {
-    stream.getTracks().forEach(t => t.stop());
-    stream = null;
-  }
-  video.srcObject = null;
-
-  startBtn.style.display = 'none';
-  statusEl.textContent = 'Spouštím kameru...';
-
-  try {
-    stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode, width:{ ideal:960 }, height:{ ideal:540 } },
-      audio: false
+  if(starting)return; starting=true;
+  running=false;
+  await new Promise(r=>setTimeout(r,80));
+  if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}
+  video.srcObject=null;
+  startBtn.style.display='none';
+  statusEl.textContent='Spouštím kameru...';
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({
+      video:{facingMode,width:{ideal:960},height:{ideal:540}},audio:false
     });
-
-    video.srcObject = stream;
-
-    // Bezpečné čekání na metadata s timeoutem
-    await new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => reject(new Error('Timeout')), 8000);
-      video.onloadedmetadata = () => { clearTimeout(timeout); resolve(); };
-      video.onerror = (e) => { clearTimeout(timeout); reject(e); };
+    video.srcObject=stream;
+    await new Promise((res,rej)=>{
+      const to=setTimeout(()=>rej(new Error('Timeout')),8000);
+      video.onloadedmetadata=()=>{clearTimeout(to);res();};
+      video.onerror=e=>{clearTimeout(to);rej(e);};
     });
-
-    // Explicitní play() s retry
-    try { await video.play(); } catch(e) {
-      await new Promise(r => setTimeout(r, 200));
-      await video.play();
-    }
-
-    camToggle.style.display = 'flex';
-    photoBtn.style.display  = 'flex';
-    zoomBar.style.display   = 'flex';
-    nightBtn.style.display  = 'flex';
-    legend.style.display    = 'flex';
-    fpsLabel.style.display  = 'block';
-    document.getElementById('sensitPanel').style.display = 'flex';
-    statusEl.textContent = 'Hledám...';
-    ageHistory = []; cachedAnalysis = [];
-    running = true;
-    cameraStarting = false;
-
-    // Spusť smyčky — každou s malým zpožděním aby se nepřetížil CPU najednou
+    try{await video.play();}catch(e){await new Promise(r=>setTimeout(r,200));await video.play();}
+    camToggle.style.display='flex'; photoBtn.style.display='flex';
+    zoomBar.style.display='flex'; legend.style.display='flex'; fpsEl.style.display='block';
+    statusEl.textContent='Hledám...';
+    ageHistory=[];cachedAnalysis=[];running=true;starting=false;
     drawLoop();
-    setTimeout(() => { if(running) faceLoop(); },  100);
-    setTimeout(() => { if(running) cocoLoop(); },  200);
-    setTimeout(() => { if(running) handsLoop(); }, 300);
-    setTimeout(() => { if(running) analysisLoop(); }, 400);
-
-  } catch(e) {
-    cameraStarting = false;
-    running = false;
-    statusEl.textContent = '⚠️ Kamera selhala: ' + e.message;
-    startBtn.style.display = 'block';
-    console.error('Camera error:', e);
+    setTimeout(()=>{if(running)faceLoop();},100);
+    setTimeout(()=>{if(running)cocoLoop();},200);
+    setTimeout(()=>{if(running)handsLoop();},300);
+    setTimeout(()=>{if(running)analysisLoop();},400);
+  }catch(e){
+    starting=false;running=false;
+    statusEl.textContent='⚠️ Kamera selhala';
+    startBtn.style.display='block';
+    console.error(e);
   }
 }
 
-// ── 1. KRESLENÍ — 60fps, žádná AI ────────────────────────────────────────
+// ── COCO canvas ───────────────────────────────────────────────────────────
+const ccv=document.createElement('canvas');
+const cct=ccv.getContext('2d');
+
+// Pouze osoby a vozidla
+const VEHICLES=['car','truck','bus','motorcycle','bicycle','boat','airplane','train'];
+
+// ── 1. Kreslení — 60fps ───────────────────────────────────────────────────
 function drawLoop(){
-  if(!running) return;
+  if(!running)return;
   maybeResize();
   draw();
   frameCount++;
   const now=performance.now();
-  if(now-lastTime>=1000){
-    fpsLabel.textContent=frameCount+' fps'; frameCount=0; lastTime=now;
-  }
-  if(fastFaces.length===0) hideStats();
+  if(now-lastTime>=1000){fpsEl.textContent=frameCount+' fps';frameCount=0;lastTime=now;}
+  if(fastFaces.length===0)hideStats();
   const f=fastFaces.length,hc=lastHandResults.length;
-  const persons=cocoResults.filter(o=>o.class==='person').length;
-  const others=cocoResults.filter(o=>o.class!=='person').length;
+  const p=cocoResults.filter(o=>o.class==='person').length;
+  const v=cocoResults.filter(o=>VEHICLES.includes(o.class)).length;
   const parts=[];
-  if(f) parts.push(f===1?'1 obličej':f+' obličeje');
-  if(hc) parts.push(hc===1?'1 ruka':hc+' ruce');
-  if(persons) parts.push(persons===1?'1 osoba':persons+' osoby');
-  if(others) parts.push(others+' obj.');
+  if(f)parts.push(f===1?'1 obličej':f+' obličeje');
+  if(hc)parts.push(hc===1?'1 ruka':hc+' ruce');
+  if(p)parts.push(p===1?'1 osoba':p+' osoby');
+  if(v)parts.push(v===1?'1 vozidlo':v+' vozidel');
   statusEl.textContent=parts.length?parts.join(' · '):'Hledám...';
   requestAnimationFrame(drawLoop);
 }
 
-// ── 2. DETEKCE OBLIČEJE — každých 150ms ──────────────────────────────────
-let faceRunning=false;
+// ── 2. Obličej — každých 150ms ────────────────────────────────────────────
+let fR=false;
 async function faceLoop(){
-  if(!running){ faceRunning=false; return; }
-  if(!faceRunning && video.readyState>=2){
-    faceRunning=true;
+  if(!running){fR=false;return;}
+  if(!fR&&video.readyState>=2){
+    fR=true;
     try{
-      const opts=new faceapi.TinyFaceDetectorOptions({inputSize:224,scoreThreshold:.25});
-      fastFaces=await faceapi.detectAllFaces(video,opts);
-    }catch(e){ fastFaces=[]; }
-    faceRunning=false;
+      const o=new faceapi.TinyFaceDetectorOptions({inputSize:224,scoreThreshold:.25});
+      fastFaces=await faceapi.detectAllFaces(video,o);
+    }catch(e){fastFaces=[];}
+    fR=false;
   }
-  setTimeout(()=>{ if(running) faceLoop(); },150);
+  setTimeout(()=>{if(running)faceLoop();},150);
 }
 
-// ── 3. COCO-SSD — každých 350ms ──────────────────────────────────────────
-// Pomocný canvas v nižším rozlišení pro rychlejší COCO inference
-const cocoCanvas=document.createElement('canvas');
-const cocoCtx=cocoCanvas.getContext('2d');
-let cocoRunning=false;
-let cocoInputSize=960; // dynamicky mění zoom
-
+// ── 3. COCO — každých 400ms (pouze osoby a vozidla) ──────────────────────
+let cR=false;
 async function cocoLoop(){
-  if(!running) return;
-  if(!cocoRunning && cocoModel && video.readyState>=2){
-    cocoRunning=true;
+  if(!running){cR=false;return;}
+  if(!cR&&cocoModel&&video.readyState>=2){
+    cR=true;
     try{
-      cocoCanvas.width=cocoInputSize;
-      cocoCanvas.height=Math.round(cocoInputSize*(video.videoHeight/video.videoWidth));
-      cocoCtx.drawImage(video,0,0,cocoCanvas.width,cocoCanvas.height);
-      const raw=await cocoModel.detect(cocoCanvas,60,cocoThreshold);
-      const sx=video.videoWidth/cocoCanvas.width;
-      const sy=video.videoHeight/cocoCanvas.height;
-      const rescaled=raw.map(o=>({
-        ...o,
-        bbox:[o.bbox[0]*sx, o.bbox[1]*sy, o.bbox[2]*sx, o.bbox[3]*sy]
-      }));
-
-      // Pro ne-osoby spusť MobileNet klasifikaci (max 4 najednou)
-      const toClassify=rescaled.filter(o=>o.class!=='person').slice(0,4);
-      await Promise.all(toClassify.map(async o=>{
-        const key=Math.round(o.bbox[0]/20)+','+Math.round(o.bbox[1]/20)+','+o.class;
-        if(!classifyCache.has(key)){
-          const mn=await classifyObject(o.bbox);
-          classifyCache.set(key, mn);
-          // Cache max 40 položek
-          if(classifyCache.size>40){
-            classifyCache.delete(classifyCache.keys().next().value);
-          }
-        }
-        o.mnLabel=classifyCache.get(key);
-      }));
-
-      cocoResults=rescaled;
-    }catch(e){ cocoResults=[]; }
-    cocoRunning=false;
+      ccv.width=960;ccv.height=Math.round(960*(video.videoHeight/video.videoWidth));
+      cct.drawImage(video,0,0,ccv.width,ccv.height);
+      const raw=await cocoModel.detect(ccv,40,.22);
+      const sx=video.videoWidth/ccv.width,sy=video.videoHeight/ccv.height;
+      // Filtruj jen osoby a vozidla
+      cocoResults=raw
+        .filter(o=>o.class==='person'||VEHICLES.includes(o.class))
+        .map(o=>({...o,bbox:[o.bbox[0]*sx,o.bbox[1]*sy,o.bbox[2]*sx,o.bbox[3]*sy]}));
+    }catch(e){cocoResults=[];}
+    cR=false;
   }
   setTimeout(()=>{if(running)cocoLoop();},400);
 }
 
-// ── 4. RUCE — každých 120ms ───────────────────────────────────────────────
-let handsRunning=false;
+// ── 4. Ruce — každých 120ms ───────────────────────────────────────────────
+let hR=false;
 async function handsLoop(){
-  if(!running){ handsRunning=false; return; }
-  if(!handsRunning && mpHands && video.readyState>=2){
-    handsRunning=true;
-    try{ await mpHands.send({image:video}); }catch(e){}
-    handsRunning=false;
+  if(!running){hR=false;return;}
+  if(!hR&&mpHands&&video.readyState>=2){
+    hR=true;
+    try{await mpHands.send({image:video});}catch(e){}
+    hR=false;
   }
-  setTimeout(()=>{ if(running) handsLoop(); },120);
+  setTimeout(()=>{if(running)handsLoop();},120);
 }
 
-// ── 5. ANALÝZA — věk/emoce/pohlaví každých 900ms ─────────────────────────
+// ── 5. Analýza věk/emoce — každých 900ms ─────────────────────────────────
 async function analysisLoop(){
-  if(!running) return;
-  if(video.readyState>=2 && fastFaces.length>0){
+  if(!running)return;
+  if(video.readyState>=2&&fastFaces.length>0){
     try{
-      const opts=new faceapi.TinyFaceDetectorOptions({inputSize:320,scoreThreshold:.25});
-      const res=await faceapi.detectAllFaces(video,opts)
-        .withFaceLandmarks().withFaceExpressions().withAgeAndGender();
+      const o=new faceapi.TinyFaceDetectorOptions({inputSize:320,scoreThreshold:.25});
+      const res=await faceapi.detectAllFaces(video,o).withFaceLandmarks().withFaceExpressions().withAgeAndGender();
       if(res.length>0){
         cachedAnalysis=res;
-        const best=res.reduce((a,b)=>a.detection.score>b.detection.score?a:b);
-        showStats(best);
+        showStats(res.reduce((a,b)=>a.detection.score>b.detection.score?a:b));
       }
     }catch(e){}
   }
-  setTimeout(()=>{ if(running) analysisLoop(); },900);
+  setTimeout(()=>{if(running)analysisLoop();},900);
 }
 
 // ── Kreslení ──────────────────────────────────────────────────────────────
@@ -1027,29 +544,19 @@ function draw(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
   const r=getR();
 
-  // Pomocná funkce — bbox video→canvas s zrcadlením X
-  function toBox(x,y,w,h){
-    const cbx = vx(x+w, r); // levý kraj (zrcadleno)
-    const cby = vy(y, r);
-    const cbw = w * r.sx;
-    const cbh = h * r.sy;
-    return [cbx, cby, cbw, cbh];
-  }
-
   // Obličeje — červené
   for(let i=0;i<fastFaces.length;i++){
     const det=fastFaces[i];
     const {x,y,width:w,height:h}=det.box;
-    const [bx,by,bw,bh]=toBox(x,y,w,h);
+    const [bx,by,bw,bh]=toBox(x,y,w,h,r);
     box(bx,by,bw,bh,'#ff3b3b','rgba(255,59,59,.18)');
     const ca=cachedAnalysis[i];
     if(ca){
-      const agRaw=Math.round(ca.age);
-      const agSorted=[...ageHistory].sort((a,b)=>a-b);
-      const agMid=Math.floor(agSorted.length/2);
-      const ag=agSorted.length?(agSorted.length%2?agSorted[agMid]:Math.round((agSorted[agMid-1]+agSorted[agMid])/2)):agRaw;
+      const agS=[...ageHistory].sort((a,b)=>a-b);
+      const agM=Math.floor(agS.length/2);
+      const ag=agS.length?(agS.length%2?agS[agM]:Math.round((agS[agM-1]+agS[agM])/2)):Math.round(ca.age);
       const gn=ca.gender==='male'?'👨':'👩';
-      pill(gn+' ~'+ag+'l '+Math.round(det.score*100)+'%',bx,by,'#bb1c1c');
+      pill(gn+' ~'+ag+'l  '+Math.round(det.score*100)+'%',bx,by,'#bb1c1c');
       if(ca.expressions){
         const s=Object.entries(ca.expressions).sort((a,b)=>b[1]-a[1]);
         if(s[0][1]>.3){const em=EM[s[0][0]]||{e:'',cs:s[0][0]};pillB(em.e+' '+em.cs,bx,by+bh,'#6b0f0f');}
@@ -1059,29 +566,23 @@ function draw(){
     }
   }
 
-  // COCO objekty
+  // COCO — osoby (oranžová) + vozidla (modrá)
   for(const obj of cocoResults){
-    const cat=COCO[obj.class];
-    if(!cat) continue;
+    const isPerson=obj.class==='person';
+    const col=isPerson?'#ff8c00':'#38bdf8';
+    const glow=isPerson?'rgba(255,140,0,.18)':'rgba(56,189,248,.18)';
     const [ox,oy,ow,oh]=obj.bbox;
-    const [bx,by,bw,bh]=toBox(ox,oy,ow,oh);
+    const [bx,by,bw,bh]=toBox(ox,oy,ow,oh,r);
     const pct=Math.round(obj.score*100);
-    box(bx,by,bw,bh,cat.color,cat.glow);
-    if(obj.class==='person'){
-      const act=activity(obj.bbox,cocoResults);
-      const cx=ox+ow/2, cy=oy+oh/2;
-      const tracker=getOrCreateTracker(cx,cy,act.t);
-      const dur=formatDuration(Date.now()-tracker.startTime);
-      const dist=estimateDistance(oh*r.sy);
-      pill(act.e+' '+act.t+' '+pct+'%',bx,by,cat.color+'cc');
-      pillB('⏱ '+dur,bx,by+bh,'rgba(0,0,0,0.75)');
-      if(dist) pillR('📏 '+dist.text, bx+bw, by, 'rgba(0,0,0,0.75)', dist.color);
+    box(bx,by,bw,bh,col,glow);
+    if(isPerson){
+      // Vzdálenost
+      const dist=distLabel(oh,r.sy);
+      pill('🏃 Osoba '+pct+'%',bx,by,col+'cc');
+      pillR('📏 '+dist.t,bx+bw,by,'rgba(0,0,0,.75)',dist.c);
     }else{
-      // MobileNet label má přednost před COCO
-      const lbl = obj.mnLabel
-        ? obj.mnLabel.label + ' ' + obj.mnLabel.pct + '%'
-        : cat.cs + ' ' + pct + '%';
-      pill(lbl, bx, by, cat.color+'cc');
+      const labels={car:'🚗 Auto',truck:'🚛 Nákladák',bus:'🚌 Bus',motorcycle:'🏍 Motorka',bicycle:'🚲 Kolo',boat:'⛵ Loď',airplane:'✈️ Letadlo',train:'🚂 Vlak'};
+      pill((labels[obj.class]||obj.class)+' '+pct+'%',bx,by,col+'cc');
     }
   }
 
@@ -1089,14 +590,13 @@ function draw(){
   for(const lm of lastHandResults){
     let mnX=1e9,mnY=1e9,mxX=-1e9,mxY=-1e9;
     for(const p of lm){
-      const px=p.x*video.videoWidth, py=p.y*video.videoHeight;
-      if(px<mnX)mnX=px;if(px>mxX)mxX=px;
-      if(py<mnY)mnY=py;if(py>mxY)mxY=py;
+      const px=p.x*video.videoWidth,py=p.y*video.videoHeight;
+      if(px<mnX)mnX=px;if(px>mxX)mxX=px;if(py<mnY)mnY=py;if(py>mxY)mxY=py;
     }
     const pad=20;
-    const [bx,by,bw,bh]=toBox(mnX-pad,mnY-pad,(mxX-mnX+pad*2),(mxY-mnY+pad*2));
+    const [bx,by,bw,bh]=toBox(mnX-pad,mnY-pad,mxX-mnX+pad*2,mxY-mnY+pad*2,r);
     box(bx,by,bw,bh,'#00e5a0','rgba(0,229,160,.15)');
-    const g=gesture(lm),f=countFingers(lm);
+    const g=gesture(lm),f=fingers(lm).filter(Boolean).length;
     pill(g.e+' '+g.n,bx,by,'#007a55');
     pillB('Prsty: '+f,bx,by+bh,'#005540');
     // Kostra
@@ -1108,167 +608,84 @@ function draw(){
     }
     ctx.stroke();
     for(let i=0;i<lm.length;i++){
-      const isTip=[4,8,12,16,20].includes(i);
-      ctx.fillStyle=isTip?'#fff':'#00e5a0';
+      const tip=[4,8,12,16,20].includes(i);
+      ctx.fillStyle=tip?'#fff':'#00e5a0';
       ctx.beginPath();
-      ctx.arc(vx(lm[i].x*video.videoWidth,r),vy(lm[i].y*video.videoHeight,r),isTip?4:2.5,0,Math.PI*2);
+      ctx.arc(vx(lm[i].x*video.videoWidth,r),vy(lm[i].y*video.videoHeight,r),tip?4:2.5,0,Math.PI*2);
       ctx.fill();
     }
   }
 }
 
-// ── Event listeners ───────────────────────────────────────────────────────
-startBtn.addEventListener('click', startCamera);
-camToggle.addEventListener('click',()=>{ facingMode=facingMode==='user'?'environment':'user'; ageHistory=[];cachedAnalysis=[];startCamera(); });
-photoBtn.addEventListener('click', takePhoto);
-window.addEventListener('resize',()=>{canvasW=0;});
-
-// ── Citlivost detekce ─────────────────────────────────────────────────────
-let cocoThreshold = 0.22;
-const sensitSlider = document.getElementById('sensitSlider');
-const sensitVal    = document.getElementById('sensitVal');
-sensitSlider.addEventListener('input', () => {
-  cocoThreshold = sensitSlider.value / 100;
-  sensitVal.textContent = sensitSlider.value + '%';
-});
+// ── Foto ──────────────────────────────────────────────────────────────────
+function takePhoto(){
+  flashEl.style.transition='none';flashEl.style.opacity='.8';
+  setTimeout(()=>{flashEl.style.transition='opacity .3s';flashEl.style.opacity='0';},80);
+  const s=document.createElement('canvas');
+  s.width=video.videoWidth;s.height=video.videoHeight;
+  const sc=s.getContext('2d');
+  sc.save();sc.scale(-1,1);sc.drawImage(video,-s.width,0,s.width,s.height);sc.restore();
+  sc.save();sc.scale(-1,1);sc.drawImage(canvas,-s.width,0,s.width,s.height);sc.restore();
+  const a=document.createElement('a');
+  a.download='ai-'+new Date().toISOString().slice(0,19).replace(/[:.]/g,'-')+'.jpg';
+  a.href=s.toDataURL('image/jpeg',.92);a.click();
+}
 
 // ── Zoom ──────────────────────────────────────────────────────────────────
-let currentZoom = 1;
-const zoomBar   = document.getElementById('zoomBar');
-const zoomBtns  = document.querySelectorAll('.zoom-btn');
-
-async function applyZoom(z) {
-  currentZoom = z;
-  zoomBtns.forEach(b => b.classList.toggle('active', parseFloat(b.dataset.zoom)===z));
-  if (!stream) return;
-  const track = stream.getVideoTracks()[0];
-  if (!track) return;
-  try {
-    // Samsung S21 podporuje hardware zoom přes constraints
-    const caps = track.getCapabilities ? track.getCapabilities() : {};
-    if (caps.zoom) {
-      // Mapuj 1-10x na min-max rozsah kamery
-      const minZ = caps.zoom.min || 1;
-      const maxZ = caps.zoom.max || 10;
-      const mapped = minZ + (z - 1) * (maxZ - minZ) / 9;
-      await track.applyConstraints({ advanced:[{ zoom: Math.min(mapped, maxZ) }] });
-      // Obnov CSS transform na normální (hardware zoom)
-      video.style.transform = 'scaleX(-1)';
-      canvas.style.transform = 'none';
-    } else {
-      throw new Error('no hw zoom');
+document.querySelectorAll('.zb').forEach(btn=>{
+  btn.addEventListener('click',async()=>{
+    const z=parseFloat(btn.dataset.z);
+    currentZoom=z;
+    document.querySelectorAll('.zb').forEach(b=>b.classList.toggle('on',b===btn));
+    if(!stream)return;
+    const track=stream.getVideoTracks()[0];
+    if(!track)return;
+    try{
+      const caps=track.getCapabilities?track.getCapabilities():{};
+      if(caps.zoom){
+        const mn=caps.zoom.min||1,mx=caps.zoom.max||10;
+        await track.applyConstraints({advanced:[{zoom:mn+(z-1)*(mx-mn)/9}]});
+        video.style.transform='scaleX(-1)';
+        canvas.style.transform='none';
+      }else throw '';
+    }catch(e){
+      video.style.transform=`scaleX(-1) scale(${z})`;
+      canvas.style.transform=`scale(${z})`;
+      canvas.style.transformOrigin='center';
     }
-  } catch(e) {
-    // Digitální zoom přes CSS scale
-    video.style.transform = `scaleX(-1) scale(${z})`;
-    canvas.style.transform = `scale(${z})`;
-    canvas.style.transformOrigin = 'center center';
-  }
-  // Při zooomu > 2x zvyš COCO input size pro lepší detekci
-  cocoInputSize = z >= 3 ? 1280 : z >= 2 ? 960 : 800;
-}
-
-zoomBtns.forEach(btn => {
-  btn.addEventListener('click', () => applyZoom(parseFloat(btn.dataset.zoom)));
+  });
 });
 
-// ── Night mode / kontrast boost ───────────────────────────────────────────
-let nightMode   = false;
-const nightBtn  = document.getElementById('nightBtn');
-const nightCvs  = document.getElementById('nightOverlay');
-const nightCtx2 = nightCvs.getContext('2d');
-let nightAnim   = null;
-
-function renderNight() {
-  if (!nightMode) return;
-  nightCvs.width  = nightCvs.offsetWidth;
-  nightCvs.height = nightCvs.offsetHeight;
-  if (video.readyState < 2) { nightAnim=requestAnimationFrame(renderNight); return; }
-  // Nakresli video s filtery
-  nightCtx2.filter = 'brightness(1.8) contrast(2.2) saturate(0.2) hue-rotate(90deg)';
-  nightCtx2.save();
-  nightCtx2.scale(-1,1);
-  nightCtx2.drawImage(video,-nightCvs.width,0,nightCvs.width,nightCvs.height);
-  nightCtx2.restore();
-  nightAnim = requestAnimationFrame(renderNight);
-}
-
-function renderNight() {
-  if (!nightMode) return;
-  nightCvs.width  = nightCvs.offsetWidth;
-  nightCvs.height = nightCvs.offsetHeight;
-  if (video.readyState < 2) { nightAnim=requestAnimationFrame(renderNight); return; }
-  nightCtx2.filter = 'brightness(2.2) contrast(2.8) saturate(0.15) hue-rotate(85deg)';
-  nightCtx2.save();
-  nightCtx2.scale(-1,1);
-  nightCtx2.drawImage(video,-nightCvs.width,0,nightCvs.width,nightCvs.height);
-  nightCtx2.restore();
-  nightAnim = requestAnimationFrame(renderNight);
-}
-
-nightBtn.addEventListener('click', () => {
-  nightMode = !nightMode;
-  nightBtn.classList.toggle('on', nightMode);
-  nightBtn.textContent = nightMode ? '☀️ Normal' : '🌙 Noc';
-  nightCvs.style.display = nightMode ? 'block' : 'none';
-  if (nightMode) {
-    renderNight();
-    // Night mode = nižší threshold pro zachycení i tmavých siluet
-    if (cocoThreshold > 0.15) {
-      cocoThreshold = 0.15;
-      sensitSlider.value = 15;
-      sensitVal.textContent = '15%';
-    }
-  } else {
-    if(nightAnim) cancelAnimationFrame(nightAnim);
-    nightAnim=null;
-  }
+// ── Events ────────────────────────────────────────────────────────────────
+startBtn.addEventListener('click',startCamera);
+camToggle.addEventListener('click',()=>{
+  facingMode=facingMode==='user'?'environment':'user';
+  ageHistory=[];cachedAnalysis=[];startCamera();
 });
+photoBtn.addEventListener('click',takePhoto);
+window.addEventListener('resize',()=>{canvasW=0;});
 
-const updateModal = document.getElementById('updateModal');
-const updateClose = document.getElementById('updateClose');
-const APP_VERSION = '0.8';
-
-function showUpdateModal() {
-  const seen = localStorage.getItem('ai_kamera_ver');
-  if (seen !== APP_VERSION) {
-    updateModal.classList.add('show');
-  }
-}
-updateClose.addEventListener('click', () => {
-  updateModal.classList.remove('show');
-  try { localStorage.setItem('ai_kamera_ver', APP_VERSION); } catch(e) {}
-});
-
+// ── Net status ────────────────────────────────────────────────────────────
 function updateNet(){
   if(navigator.onLine){
-    netBanner.className='online'; netBanner.textContent='✓ Online — modely se stáhnou a uloží do cache';
-    setTimeout(()=>{netBanner.style.display='none';},3000);
+    netEl.className='on';netEl.textContent='✓ Online';
+    setTimeout(()=>{netEl.style.display='none';},3000);
   }else{
-    netBanner.className='offline'; netBanner.textContent='⚠️ Offline — potřebuji modely v cache';
-    netBanner.style.display='block';
+    netEl.className='off';netEl.textContent='⚠️ Offline — potřebuji cache';
   }
 }
-window.addEventListener('online', updateNet);
-window.addEventListener('offline', updateNet);
+window.addEventListener('online',updateNet);
+window.addEventListener('offline',updateNet);
 updateNet();
 
-// ── Splash screen ─────────────────────────────────────────────────────────
-const splash = document.getElementById('splash');
-const splashFill = document.getElementById('splash-bar-fill');
-
-function startSplash() {
-  // Spustí progress bar
-  requestAnimationFrame(() => { splashFill.style.width = '100%'; });
-  setTimeout(() => {
-    splash.classList.add('fade');
-    setTimeout(() => { splash.style.display = 'none'; }, 650);
-    // Spustí loading modelů
-    loadModels();
-  }, 5000);
-}
-
-startSplash();
+// ── Splash → Loading ──────────────────────────────────────────────────────
+const splash=document.getElementById('splash');
+const sfill=document.getElementById('splash-fill');
+requestAnimationFrame(()=>{sfill.style.width='100%';});
+setTimeout(()=>{
+  splash.classList.add('fade');
+  setTimeout(()=>{splash.style.display='none';loadModels();},550);
+},5000);
 </script>
 </body>
 </html>
