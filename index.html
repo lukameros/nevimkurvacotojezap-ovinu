@@ -3,140 +3,186 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>AI Kamera — Výběr</title>
+<title>AI Kamera</title>
 <style>
-* { margin:0; padding:0; box-sizing:border-box; }
-body {
-  background:#050a05;
-  color:#fff;
-  font-family:system-ui,sans-serif;
-  min-height:100dvh;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-  padding:24px 20px;
-}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:#050a05;color:#fff;font-family:system-ui,sans-serif;min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px 20px;}
 
-/* Header */
-.logo { font-size:48px; margin-bottom:10px; }
-h1 { font-size:20px; font-weight:800; letter-spacing:1px; color:#00e5a0; margin-bottom:4px; }
-.sub { font-size:11px; color:rgba(255,255,255,.3); letter-spacing:3px; text-transform:uppercase; margin-bottom:36px; }
+#loginWrap{width:100%;max-width:320px;display:flex;flex-direction:column;align-items:center;}
+.login-icon{font-size:44px;margin-bottom:10px;}
+.login-title{font-size:19px;font-weight:800;letter-spacing:1px;color:#00e5a0;margin-bottom:3px;}
+.login-sub{font-size:10px;color:rgba(255,255,255,.25);letter-spacing:3px;text-transform:uppercase;margin-bottom:32px;}
+.login-box{width:100%;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:24px 20px;display:flex;flex-direction:column;gap:14px;}
+.fl{font-size:10px;font-weight:700;color:rgba(255,255,255,.35);letter-spacing:.8px;text-transform:uppercase;margin-bottom:5px;}
+.fi{width:100%;padding:11px 14px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:10px;color:#fff;font-size:15px;outline:none;transition:border-color .18s;}
+.fi:focus{border-color:rgba(0,229,160,.5);}
+.fi::placeholder{color:rgba(255,255,255,.2);}
+#loginBtn{width:100%;padding:13px;margin-top:4px;background:#00e5a0;color:#000;border:none;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer;letter-spacing:.3px;transition:opacity .18s,transform .1s;}
+#loginBtn:active{transform:scale(.97);}
+#errMsg{font-size:12px;color:#ff6b6b;text-align:center;min-height:16px;margin-top:-6px;}
 
-/* Cards */
-.cards { display:flex; flex-direction:column; gap:14px; width:100%; max-width:360px; }
-
-.card {
-  display:flex; align-items:center; gap:16px;
-  background:rgba(255,255,255,.04);
-  border:1px solid rgba(255,255,255,.08);
-  border-radius:16px; padding:16px 18px;
-  text-decoration:none; color:#fff;
-  transition:background .18s, border-color .18s, transform .12s;
-  cursor:pointer;
-}
-.card:active { transform:scale(.97); }
-.card:hover  { background:rgba(255,255,255,.08); border-color:rgba(255,255,255,.16); }
-
-.card.airsoft  { border-color:rgba(0,229,160,.25); }
-.card.cars     { border-color:rgba(56,189,248,.25); }
-.card.people   { border-color:rgba(255,140,0,.25); }
-.card.all      { border-color:rgba(167,139,250,.25); }
-
-.card.airsoft:hover  { background:rgba(0,229,160,.08);  border-color:rgba(0,229,160,.5); }
-.card.cars:hover     { background:rgba(56,189,248,.08);  border-color:rgba(56,189,248,.5); }
-.card.people:hover   { background:rgba(255,140,0,.08);   border-color:rgba(255,140,0,.5); }
-.card.all:hover      { background:rgba(167,139,250,.08); border-color:rgba(167,139,250,.5); }
-
-.card-icon { font-size:34px; flex-shrink:0; }
-.card-body { flex:1; }
-.card-title {
-  font-size:16px; font-weight:800; letter-spacing:.5px;
-  margin-bottom:3px;
-}
-.card.airsoft  .card-title { color:#00e5a0; }
-.card.cars     .card-title { color:#38bdf8; }
-.card.people   .card-title { color:#ff8c00; }
-.card.all      .card-title { color:#a78bfa; }
-
-.card-desc { font-size:11px; color:rgba(255,255,255,.4); line-height:1.5; }
-
-.card-arrow {
-  font-size:18px; color:rgba(255,255,255,.2);
-  flex-shrink:0; transition:color .18s, transform .18s;
-}
-.card:hover .card-arrow { color:rgba(255,255,255,.6); transform:translateX(3px); }
-
-/* Badges */
-.badges {
-  display:flex; flex-wrap:wrap; gap:6px; justify-content:center;
-  margin-top:36px; max-width:360px;
-}
-.badge {
-  padding:4px 12px; border-radius:16px;
-  font-size:10px; font-weight:700; letter-spacing:.5px; text-transform:uppercase;
-}
-.badge.g { background:rgba(0,229,160,.1);  border:1px solid rgba(0,229,160,.3);  color:#00e5a0; }
-.badge.r { background:rgba(255,59,59,.08); border:1px solid rgba(255,59,59,.25); color:#ff6b6b; }
-.badge.y { background:rgba(255,208,60,.08);border:1px solid rgba(255,208,60,.25);color:#ffd03c; }
-.badge.gr{ background:rgba(148,163,184,.08);border:1px solid rgba(148,163,184,.2);color:#94a3b8; }
-
-.year { font-size:10px; color:rgba(255,255,255,.15); letter-spacing:4px; margin-top:16px; }
+#menuWrap{display:none;width:100%;max-width:360px;flex-direction:column;align-items:center;}
+.logo{font-size:48px;margin-bottom:10px;}
+h1{font-size:20px;font-weight:800;letter-spacing:1px;color:#00e5a0;margin-bottom:4px;}
+.sub{font-size:11px;color:rgba(255,255,255,.3);letter-spacing:3px;text-transform:uppercase;margin-bottom:36px;}
+.cards{display:flex;flex-direction:column;gap:14px;width:100%;}
+.card{display:flex;align-items:center;gap:16px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:16px 18px;text-decoration:none;color:#fff;transition:background .18s,border-color .18s,transform .12s;}
+.card:active{transform:scale(.97);}
+.card.a{border-color:rgba(0,229,160,.25);}  .card.a:hover{background:rgba(0,229,160,.08);border-color:rgba(0,229,160,.5);}
+.card.b{border-color:rgba(56,189,248,.25);}  .card.b:hover{background:rgba(56,189,248,.08);border-color:rgba(56,189,248,.5);}
+.card.c{border-color:rgba(255,140,0,.25);}   .card.c:hover{background:rgba(255,140,0,.08);border-color:rgba(255,140,0,.5);}
+.card.d{border-color:rgba(167,139,250,.25);} .card.d:hover{background:rgba(167,139,250,.08);border-color:rgba(167,139,250,.5);}
+.ci{font-size:34px;flex-shrink:0;}
+.cb{flex:1;}
+.ct{font-size:16px;font-weight:800;letter-spacing:.5px;margin-bottom:3px;}
+.card.a .ct{color:#00e5a0;} .card.b .ct{color:#38bdf8;} .card.c .ct{color:#ff8c00;} .card.d .ct{color:#a78bfa;}
+.cd{font-size:11px;color:rgba(255,255,255,.4);line-height:1.5;}
+.ca{font-size:18px;color:rgba(255,255,255,.2);flex-shrink:0;transition:color .18s,transform .18s;}
+.card:hover .ca{color:rgba(255,255,255,.6);transform:translateX(3px);}
+.logout{margin-top:18px;background:none;border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.3);border-radius:20px;padding:6px 18px;font-size:11px;cursor:pointer;transition:all .18s;}
+.logout:hover{border-color:rgba(255,59,59,.4);color:#ff6b6b;}
+.badges{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:32px;}
+.badge{padding:4px 12px;border-radius:16px;font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;}
+.bg{background:rgba(0,229,160,.1);border:1px solid rgba(0,229,160,.3);color:#00e5a0;}
+.br{background:rgba(255,59,59,.08);border:1px solid rgba(255,59,59,.25);color:#ff6b6b;}
+.by{background:rgba(255,208,60,.08);border:1px solid rgba(255,208,60,.25);color:#ffd03c;}
+.bgr{background:rgba(148,163,184,.08);border:1px solid rgba(148,163,184,.2);color:#94a3b8;}
+.year{font-size:10px;color:rgba(255,255,255,.15);letter-spacing:4px;margin-top:14px;}
 </style>
 </head>
 <body>
 
-<div class="logo">📷</div>
-<h1>AI KAMERA</h1>
-<div class="sub">Vyber režim</div>
-
-<div class="cards">
-
-  <a class="card airsoft" href="airsoft-vision.html">
-    <div class="card-icon">🎯</div>
-    <div class="card-body">
-      <div class="card-title">AIRSOFT</div>
-      <div class="card-desc">Detekce osob na dálku 100m+, týmový systém, zaměřovací kříž, NVG, termální pohled</div>
+<div id="loginWrap">
+  <div class="login-icon">🔒</div>
+  <div class="login-title">AI KAMERA</div>
+  <div class="login-sub">Přístup chráněn</div>
+  <div class="login-box">
+    <div>
+      <div class="fl">Uživatel</div>
+      <input class="fi" id="uI" type="text" placeholder="zadej uživatele" autocomplete="off" autocorrect="off" spellcheck="false">
     </div>
-    <div class="card-arrow">›</div>
-  </a>
-
-  <a class="card cars" href="ai-kamera-lite.html">
-    <div class="card-icon">🚗</div>
-    <div class="card-body">
-      <div class="card-title">LIDI + AUTA</div>
-      <div class="card-desc">Detekce osob, vozidel, obličeje, rukou, gest + Claude AI rozpoznání auta</div>
+    <div>
+      <div class="fl">Heslo</div>
+      <input class="fi" id="pI" type="password" placeholder="••••••••" autocomplete="off">
     </div>
-    <div class="card-arrow">›</div>
-  </a>
-
-  <a class="card people" href="index-full.html">
-    <div class="card-icon">👤</div>
-    <div class="card-body">
-      <div class="card-title">LIDI</div>
-      <div class="card-desc">Obličej, věk, pohlaví, emoce, ruce, gesta, vzdálenost, stats tabulka</div>
-    </div>
-    <div class="card-arrow">›</div>
-  </a>
-
-  <a class="card all" href="vse.html">
-    <div class="card-icon">🌐</div>
-    <div class="card-body">
-      <div class="card-title">VŠE</div>
-      <div class="card-desc">Obličej + ruce + COCO 80 objektů — zvířata, auta, jídlo, nábytek, elektronika...</div>
-    </div>
-    <div class="card-arrow">›</div>
-  </a>
-
+    <div id="errMsg"></div>
+    <button id="loginBtn">Přihlásit se</button>
+  </div>
 </div>
 
-<div class="badges">
-  <div class="badge g">✍ Created by Lukamer</div>
-  <div class="badge r">🔒 Protected Lukcheat</div>
-  <div class="badge y">🔥 No Quality</div>
-  <div class="badge gr">👁 AI Vision 2026</div>
+<div id="menuWrap">
+  <div class="logo">📷</div>
+  <h1>AI KAMERA</h1>
+  <div class="sub">Vyber režim</div>
+  <div class="cards">
+    <a class="card a" href="airsoft-vision.html">
+      <div class="ci">🎯</div>
+      <div class="cb"><div class="ct">AIRSOFT</div><div class="cd">Detekce osob 100m+, týmový systém, zaměřovací kříž, NVG, termální pohled</div></div>
+      <div class="ca">›</div>
+    </a>
+    <a class="card b" href="ai-kamera-lite.html">
+      <div class="ci">🚗</div>
+      <div class="cb"><div class="ct">LIDI + AUTA</div><div class="cd">Detekce osob, vozidel, obličeje, rukou, gest + Claude AI rozpoznání</div></div>
+      <div class="ca">›</div>
+    </a>
+    <a class="card c" href="index-full.html">
+      <div class="ci">👤</div>
+      <div class="cb"><div class="ct">LIDI</div><div class="cd">Obličej, věk, pohlaví, emoce, ruce, gesta, vzdálenost, stats tabulka</div></div>
+      <div class="ca">›</div>
+    </a>
+    <a class="card d" href="vse.html">
+      <div class="ci">🌐</div>
+      <div class="cb"><div class="ct">VŠE</div><div class="cd">Obličej + ruce + COCO 80+ objektů — zvířata, auta, jídlo, nábytek...</div></div>
+      <div class="ca">›</div>
+    </a>
+  </div>
+  <button class="logout" onclick="__logout()">Odhlásit</button>
+  <div class="badges">
+    <div class="badge bg">✍ Created by Lukamer</div>
+    <div class="badge br">🔒 Protected Lukcheat</div>
+    <div class="badge by">🔥 No Quality</div>
+    <div class="badge bgr">👁 AI Vision 2026</div>
+  </div>
+  <div class="year">2026</div>
 </div>
-<div class="year">2026</div>
 
+<script>
+// Inicializace runtime modulu
+(function(_env){
+  // Renderovací konstanty (neměnit)
+  const _r0=[0x37,0x27,0x0b,0x1d,0x33];
+  const _r1=[0x60,0x2a,0x16,0x3d];
+  // Transformační báze
+  const _b0=[0x5b,0x52,0x60,0x7c,0x40];
+  const _b1=[0x51,0x18,0x25,0x09];
+
+  // Rekonstruktor dat
+  const _rc=(v,k)=>v.map((x,i)=>x^k[i%k.length]).map(c=>String.fromCharCode(c)).join('');
+
+  // Session token
+  const _tok='__env_cfg_v1';
+  const _ua=()=>navigator.userAgent.length.toString(16);
+
+  function _initSession(){
+    try{
+      const s=sessionStorage.getItem(_tok);
+      if(s&&s===btoa('ok'+_ua())){_showApp();return true;}
+    }catch(e){}
+    return false;
+  }
+
+  function _writeSession(){
+    try{sessionStorage.setItem(_tok,btoa('ok'+_ua()));}catch(e){}
+  }
+
+  // Valida entry
+  function _validate(a,b){
+    return a===_rc(_r0,_b0) && b===_rc(_r1,_b1);
+  }
+
+  function _showApp(){
+    document.getElementById('loginWrap').style.display='none';
+    const m=document.getElementById('menuWrap');
+    m.style.display='flex';
+  }
+
+  _env.__logout=function(){
+    try{sessionStorage.removeItem(_tok);}catch(e){}
+    document.getElementById('menuWrap').style.display='none';
+    document.getElementById('loginWrap').style.display='flex';
+    document.getElementById('uI').value='';
+    document.getElementById('pI').value='';
+  };
+
+  if(_initSession())return;
+
+  let _fc=0;
+  function _process(){
+    if(_fc>=5){
+      document.getElementById('errMsg').textContent='Příliš mnoho pokusů.';
+      document.getElementById('loginBtn').disabled=true;
+      return;
+    }
+    const u=document.getElementById('uI').value.trim();
+    const p=document.getElementById('pI').value;
+    const e=document.getElementById('errMsg');
+    if(!u||!p){e.textContent='Vyplň obě pole.';return;}
+    if(_validate(u,p)){
+      e.textContent='';
+      _writeSession();
+      _showApp();
+    }else{
+      _fc++;
+      e.textContent='Špatné přihlašovací údaje.';
+      document.getElementById('pI').value='';
+      setTimeout(()=>{e.textContent='';},2500);
+    }
+  }
+
+  document.getElementById('loginBtn').addEventListener('click',_process);
+  document.addEventListener('keydown',ev=>{if(ev.key==='Enter')_process();});
+
+})(window);
+</script>
 </body>
 </html>
