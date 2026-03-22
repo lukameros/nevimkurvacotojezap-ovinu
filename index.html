@@ -76,6 +76,16 @@ body{background:#000;color:#fff;font-family:system-ui,sans-serif;height:100dvh;d
 #teamLabel.red{background:rgba(255,59,59,.8);color:#fff;}
 #teamLabel.blue{background:rgba(56,189,248,.8);color:#000;}
 
+/* ── Crosshair + compass ── */
+#crosshair {
+  position:absolute; inset:0; z-index:4; pointer-events:none; display:none;
+}
+
+#compass {
+  position:absolute; bottom:130px; right:12px; z-index:25;
+  width:60px; height:60px; display:none;
+}
+
 #flash{position:absolute;inset:0;z-index:50;background:#fff;pointer-events:none;opacity:0;}
 #net{width:100%;padding:4px 16px;text-align:center;font-size:10px;font-weight:600;flex-shrink:0;display:none;}
 #net.off{background:#7f1d1d;color:#fca5a5;display:block;}
@@ -153,6 +163,8 @@ body{background:#000;color:#fff;font-family:system-ui,sans-serif;height:100dvh;d
     <div class="ctrl-btn" id="photoBtn"  title="Foto">📷</div>
   </div>
 
+  <canvas id="crosshair"></canvas>
+  <canvas id="compass"></canvas>
   <div id="flash"></div>
 </div>
 
@@ -445,6 +457,10 @@ function draw(ts){
     if(visionMode==='thermo') renderThermo();
     if(visionMode==='edge')   renderEdge();
 
+    // Kříž + kompas
+    drawCrosshair();
+    if(gyroAvail) drawCompass();
+
     frameCount++;
     const now=performance.now();
     if(now-lastFpsTime>=1000){
@@ -471,9 +487,6 @@ let detRunning=false;
 const WEAPON_CLASSES=['knife','baseball bat','scissors'];
 const PERSON_CLASS='person';
 
-// Zbraně: COCO třídy + heuristika aspect ratio
-const WEAPON_CLASSES=['knife','baseball bat','scissors'];
-const PERSON_CLASS='person';
 
 function looksLikeWeapon(bbox){
   const[,, w,h]=bbox;
@@ -496,62 +509,15 @@ function preprocessFrame(srcCanvas,dstCanvas,dstCtx,w,h){
 
 // ── Sliding window detekce — rozdělí snímek na dlaždice ─────────────────
 // Pro každou dlaždici spustí COCO → zachytí malé objekty na dálku
-async function detectTiles(srcCanvas,threshold){
-  const W=srcCanvas.width, H=srcCanvas.height;
-  const allDets=[];
-
-  // Dlaždice: celý snímek + 4 kvadranty + střed = 6 průchodů
-  const tiles=[
-    {sx:0,sy:0,sw:W,sh:H,scale:1},              // celý snímek
-    {sx:0,sy:0,sw:W*.6,sh:H*.6,scale:W*.6/W},   // levý horní (dálka = horní část)
-    {sx:W*.4,sy:0,sw:W*.6,sh:H*.6,scale:W*.6/W},// pravý horní
-    {sx:0,sy:H*.35,sw:W*.55,sh:H*.65,scale:W*.55/W},// levý dolní
-    {sx:W*.45,sy:H*.35,sw:W*.55,sh:H*.65,scale:W*.55/W},// pravý dolní
-    {sx:W*.2,sy:H*.1,sw:W*.6,sh:H*.8,scale:W*.6/W}, // střed
-  ];
-
-  const tileBuf=document.createElement('canvas');
-  const tileCtx=tileBuf.getContext('2d');
-
-  for(const tile of tiles){
-    const TW=Math.min(640,Math.round(tile.sw)), TH=Math.round(tile.sh*(TW/tile.sw));
-    tileBuf.width=TW; tileBuf.height=TH;
-    tileCtx.drawImage(srcCanvas,tile.sx,tile.sy,tile.sw,tile.sh,0,0,TW,TH);
-
-    try{
-      const raw=await cocoModel.detect(tileBuf,20,threshold);
-      const scaleX=tile.sw/TW, scaleY=tile.sh/TH;
-      for(const o of raw){
-        if(o.class!==PERSON_CLASS&&!WEAPON_CLASSES.includes(o.class)&&!looksLikeWeapon(o.bbox)) continue;
-        // Převod souřadnic dlaždice → původní snímek
-        const x=(o.bbox[0]*scaleX+tile.sx)/W*video.videoWidth;
-        const y=(o.bbox[1]*scaleY+tile.sy)/H*video.videoHeight;
-        const w=(o.bbox[2]*scaleX)/W*video.videoWidth;
-        const h=(o.bbox[3]*scaleY)/H*video.videoHeight;
-        allDets.push({
-          bbox:[x,y,w,h],
-          score:o.score,
-          isWeapon:o.class!==PERSON_CLASS
-        });
-      }
-    }catch(e){}
-  }
-
-  // NMS — sloučí překrývající se detekce z různých dlaždic
-  return nms(allDets,0.4);
-}
-
-// Non-Maximum Suppression — odstraní duplicity
+// NMS — odstraní duplicity
 function nms(dets,iouThresh){
   dets.sort((a,b)=>b.score-a.score);
-  const keep=[];
-  const suppressed=new Set();
+  const keep=[],sup=new Set();
   for(let i=0;i<dets.length;i++){
-    if(suppressed.has(i))continue;
+    if(sup.has(i))continue;
     keep.push(dets[i]);
     for(let j=i+1;j<dets.length;j++){
-      if(suppressed.has(j))continue;
-      if(iou(dets[i].bbox,dets[j].bbox)>iouThresh) suppressed.add(j);
+      if(!sup.has(j)&&iou(dets[i].bbox,dets[j].bbox)>iouThresh)sup.add(j);
     }
   }
   return keep;
@@ -561,21 +527,46 @@ async function runDetection(){
   if(!running||!cocoModel||video.readyState<2||detRunning)return;
   detRunning=true;
   try{
-    // Preprocessing do bufferu 800px
-    const W=800, H=Math.round(800*(video.videoHeight/video.videoWidth));
+    // A21 optimalizace — jen 2 průchody místo 6
+    // 1. Celý snímek 480px — přehled
+    // 2. Horní 60% — dálka (vzdálené postavy jsou nahoře)
+    const W=480, H=Math.round(480*(video.videoHeight/video.videoWidth));
     preBuf.width=W; preBuf.height=H;
-    // Zvýšení kontrastu před detekcí
-    preCtx.filter='contrast(1.5) brightness(1.1) saturate(0.9)';
+    preCtx.filter='contrast(1.4) brightness(1.1)';
     preCtx.drawImage(video,0,0,W,H);
     preCtx.filter='none';
 
-    // Dynamický threshold — při zoomu snížíme pro lepší dosah
-    const zoomEl=document.querySelector('.zb.on');
-    const zVal=zoomEl?parseFloat(zoomEl.dataset.z):1;
-    const thresh=zVal>=3?0.12:zVal>=2?0.15:0.18;
+    const allDets=[];
 
-    const dets=await detectTiles(preBuf,thresh);
-    updateTracks(dets);
+    // Průchod 1 — celý snímek, threshold 0.22
+    const raw1=await cocoModel.detect(preBuf,20,0.22);
+    const sx=video.videoWidth/W, sy=video.videoHeight/H;
+    for(const o of raw1){
+      if(o.class!==PERSON_CLASS&&!WEAPON_CLASSES.includes(o.class)) continue;
+      allDets.push({
+        bbox:[o.bbox[0]*sx,o.bbox[1]*sy,o.bbox[2]*sx,o.bbox[3]*sy],
+        score:o.score,isWeapon:o.class!==PERSON_CLASS
+      });
+    }
+
+    // Průchod 2 — horní 55% snímku zvětšené na plných 480px (dálka)
+    const topH=Math.round(H*0.55);
+    preBuf.width=W; preBuf.height=topH;
+    preCtx.filter='contrast(1.6) brightness(1.2)';
+    preCtx.drawImage(video,0,0,video.videoWidth,video.videoHeight*0.55,0,0,W,topH);
+    preCtx.filter='none';
+    const raw2=await cocoModel.detect(preBuf,15,0.15); // nižší threshold pro dálku
+    const sy2=(video.videoHeight*0.55)/topH;
+    for(const o of raw2){
+      if(o.class!==PERSON_CLASS&&!WEAPON_CLASSES.includes(o.class)) continue;
+      allDets.push({
+        bbox:[o.bbox[0]*sx,o.bbox[1]*sy2,o.bbox[2]*sx,o.bbox[3]*sy2],
+        score:o.score*0.9, // trochu snížíme jistotu druhého průchodu
+        isWeapon:o.class!==PERSON_CLASS
+      });
+    }
+
+    updateTracks(nms(allDets,0.35));
   }catch(e){}
   detRunning=false;
 }
@@ -615,11 +606,15 @@ async function startCamera(){
     teamBar.style.display='flex';
     hudEl.style.display='flex';
     visionBar.style.display='flex';
+    crossEl.style.display='block';
+    crossEl.style.cssText='position:absolute;inset:0;z-index:4;pointer-events:none;width:100%;height:100%;';
+    compassEl.style.display='block';
+    compassEl.style.cssText='position:absolute;bottom:130px;right:12px;z-index:25;width:60px;height:60px;';
     statusEl.textContent='Hledám...';
     tracks=[];running=true;starting=false;
     requestAnimationFrame(draw);
     // Detekce každých 300ms — nezávislá
-    detInterval=setInterval(runDetection,600);
+    detInterval=setInterval(runDetection,800); // A21 optimalizace
   }catch(e){
     starting=false;running=false;
     statusEl.textContent='⚠️ Kamera selhala';startBtn.style.display='block';
@@ -661,6 +656,161 @@ document.querySelectorAll('.zb').forEach(b=>{
     }catch(e){video.style.transform=`scale(${z})`;video.style.transformOrigin='center';}
   });
 });
+
+// ── Zaměřovací kříž + kompas ──────────────────────────────────────────────
+const crossEl  = document.getElementById('crosshair');
+const crossCtx = crossEl.getContext('2d');
+const compassEl= document.getElementById('compass');
+const compCtx  = compassEl.getContext('2d');
+
+// Gyro/orientace — kde se kamera dívá
+let heading=0, pitch=0, roll=0;
+let gyroAvail=false;
+
+if(window.DeviceOrientationEvent){
+  const req=DeviceOrientationEvent.requestPermission;
+  const handler=e=>{
+    if(e.alpha!=null){ heading=e.alpha||0; pitch=e.beta||0; roll=e.gamma||0; gyroAvail=true; }
+  };
+  if(typeof req==='function'){
+    // iOS — požádáme o povolení při prvním kliknutí
+    document.addEventListener('click',()=>{
+      req().then(p=>{ if(p==='granted') window.addEventListener('deviceorientation',handler); }).catch(()=>{});
+    },{once:true});
+  }else{
+    window.addEventListener('deviceorientation',handler);
+  }
+}
+
+// Pohybový vektor — sleduje pohyb kříže (kde se kamera pohybuje)
+let lastHeading=0, lastPitch=0;
+let motionVecX=0, motionVecY=0;
+
+function drawCrosshair(){
+  const w=crossEl.offsetWidth, h=crossEl.offsetHeight;
+  if(!w||!h)return;
+  crossEl.width=w; crossEl.height=h;
+  crossCtx.clearRect(0,0,w,h);
+
+  const cx=w/2, cy=h/2;
+  const col='rgba(0,229,160,0.85)';
+  const colFade='rgba(0,229,160,0.25)';
+
+  // Pohybový vektor (smoothed)
+  const dh=((heading-lastHeading+540)%360-180)*0.3;
+  const dp=(pitch-lastPitch)*0.3;
+  motionVecX=motionVecX*0.85+dh*2;
+  motionVecY=motionVecY*0.85+dp*2;
+  lastHeading=heading; lastPitch=pitch;
+
+  // ── Hlavní kříž ──────────────────────────────────────────────────────
+  const arm=28, gap=10, lw=1.5;
+  crossCtx.strokeStyle=col; crossCtx.lineWidth=lw; crossCtx.lineCap='round';
+
+  // Horizontální čáry
+  crossCtx.beginPath();
+  crossCtx.moveTo(cx-arm-gap,cy); crossCtx.lineTo(cx-gap,cy);
+  crossCtx.moveTo(cx+gap,cy);     crossCtx.lineTo(cx+arm+gap,cy);
+  // Vertikální čáry
+  crossCtx.moveTo(cx,cy-arm-gap); crossCtx.lineTo(cx,cy-gap);
+  crossCtx.moveTo(cx,cy+gap);     crossCtx.lineTo(cx,cy+arm+gap);
+  crossCtx.stroke();
+
+  // Středový dot
+  crossCtx.fillStyle=col;
+  crossCtx.beginPath(); crossCtx.arc(cx,cy,2.5,0,Math.PI*2); crossCtx.fill();
+
+  // Vnější kruh
+  crossCtx.strokeStyle=colFade; crossCtx.lineWidth=1;
+  crossCtx.beginPath(); crossCtx.arc(cx,cy,arm+gap+8,0,Math.PI*2); crossCtx.stroke();
+
+  // Rohy rámečku
+  const fw=Math.min(w,h)*0.35, corner=16;
+  const fx=cx-fw/2, fy=cy-fw/2;
+  crossCtx.strokeStyle='rgba(0,229,160,0.3)'; crossCtx.lineWidth=1.5;
+  crossCtx.beginPath();
+  crossCtx.moveTo(fx,fy+corner); crossCtx.lineTo(fx,fy); crossCtx.lineTo(fx+corner,fy);
+  crossCtx.moveTo(fx+fw-corner,fy); crossCtx.lineTo(fx+fw,fy); crossCtx.lineTo(fx+fw,fy+corner);
+  crossCtx.moveTo(fx+fw,fy+fw-corner); crossCtx.lineTo(fx+fw,fy+fw); crossCtx.lineTo(fx+fw-corner,fy+fw);
+  crossCtx.moveTo(fx+corner,fy+fw); crossCtx.lineTo(fx,fy+fw); crossCtx.lineTo(fx,fy+fw-corner);
+  crossCtx.stroke();
+
+  // Pohybová šipka (kam se kamera pohybuje)
+  const mv=Math.hypot(motionVecX,motionVecY);
+  if(mv>1.5){
+    const angle=Math.atan2(motionVecY,motionVecX);
+    const len=Math.min(mv*4,50);
+    crossCtx.strokeStyle='rgba(255,208,60,0.7)'; crossCtx.lineWidth=2;
+    crossCtx.beginPath();
+    crossCtx.moveTo(cx,cy);
+    crossCtx.lineTo(cx+Math.cos(angle)*len,cy+Math.sin(angle)*len);
+    crossCtx.stroke();
+    // Šipka
+    crossCtx.fillStyle='rgba(255,208,60,0.7)';
+    const tx=cx+Math.cos(angle)*len, ty=cy+Math.sin(angle)*len;
+    crossCtx.beginPath();
+    crossCtx.moveTo(tx+Math.cos(angle)*6,ty+Math.sin(angle)*6);
+    crossCtx.lineTo(tx+Math.cos(angle+2.5)*5,ty+Math.sin(angle+2.5)*5);
+    crossCtx.lineTo(tx+Math.cos(angle-2.5)*5,ty+Math.sin(angle-2.5)*5);
+    crossCtx.fill();
+  }
+
+  // Vzdálenostní prstence (range rings) — odhad vzdálenosti
+  const rings=[{d:'~10m',r:0.08},{d:'~30m',r:0.14},{d:'~50m',r:0.22},{d:'~100m',r:0.35}];
+  for(const ring of rings){
+    const rad=Math.min(w,h)*ring.r;
+    crossCtx.strokeStyle='rgba(0,229,160,0.08)'; crossCtx.lineWidth=1;
+    crossCtx.setLineDash([4,8]);
+    crossCtx.beginPath(); crossCtx.arc(cx,cy,rad,0,Math.PI*2); crossCtx.stroke();
+    crossCtx.setLineDash([]);
+    crossCtx.font='9px system-ui'; crossCtx.fillStyle='rgba(0,229,160,0.35)';
+    crossCtx.fillText(ring.d,cx+rad+3,cy-3);
+  }
+}
+
+// ── Kompas ──────────────────────────────────────────────────────────────
+function drawCompass(){
+  const s=60;
+  compassEl.width=s; compassEl.height=s;
+  compCtx.clearRect(0,0,s,s);
+  const cx=s/2,cy=s/2,r=s/2-3;
+
+  // Pozadí
+  compCtx.fillStyle='rgba(0,0,0,0.6)';
+  compCtx.beginPath(); compCtx.arc(cx,cy,r,0,Math.PI*2); compCtx.fill();
+  compCtx.strokeStyle='rgba(0,229,160,0.3)'; compCtx.lineWidth=1;
+  compCtx.beginPath(); compCtx.arc(cx,cy,r,0,Math.PI*2); compCtx.stroke();
+
+  // Světové strany
+  const dirs=[{l:'S',a:0,c:'#ff4444'},{l:'V',a:90},{l:'J',a:180},{l:'Z',a:270}];
+  for(const d of dirs){
+    const rad=(d.a-heading)*Math.PI/180;
+    const tx=cx+Math.sin(rad)*(r-8), ty=cy-Math.cos(rad)*(r-8);
+    compCtx.font=`bold ${d.l==='S'?9:8}px system-ui`;
+    compCtx.fillStyle=d.c||'rgba(255,255,255,0.5)';
+    compCtx.textAlign='center'; compCtx.textBaseline='middle';
+    compCtx.fillText(d.l,tx,ty);
+  }
+
+  // Jehla
+  compCtx.save(); compCtx.translate(cx,cy);
+  // Sever (červená)
+  compCtx.fillStyle='#ff4444';
+  compCtx.beginPath();
+  compCtx.moveTo(0,-r+12); compCtx.lineTo(-4,0); compCtx.lineTo(4,0);
+  compCtx.fill();
+  // Jih (bílá)
+  compCtx.fillStyle='rgba(255,255,255,0.4)';
+  compCtx.beginPath();
+  compCtx.moveTo(0,r-12); compCtx.lineTo(-4,0); compCtx.lineTo(4,0);
+  compCtx.fill();
+  compCtx.restore();
+
+  // Heading číslo
+  compCtx.font='bold 9px system-ui'; compCtx.fillStyle='#00e5a0';
+  compCtx.textAlign='center'; compCtx.textBaseline='middle';
+  compCtx.fillText(Math.round(heading)+'°',cx,cy);
+}
 
 // ── Foto ──────────────────────────────────────────────────────────────────
 photoBtn.addEventListener('click',()=>{
