@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Car Radar</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&display=swap');
+
+:root {
+  --green: #00ff88;
+  --green-dim: rgba(0,255,136,.15);
+  --green-glow: rgba(0,255,136,.4);
+  --red: #ff3b3b;
+  --yellow: #ffd060;
+  --blue: #38bdf8;
+  --bg: #030a04;
+  --panel: rgba(0,20,8,.85);
+  --border: rgba(0,255,136,.18);
+}
+
+*{margin:0;padding:0;box-sizing:border-box;}
+body{
+  background:var(--bg);color:var(--green);
+  font-family:'Rajdhani',sans-serif;
+  height:100dvh;display:flex;flex-direction:column;
+  overflow:hidden;
+  background-image:
+    radial-gradient(ellipse at 50% 0%, rgba(0,255,136,.04) 0%, transparent 70%),
+    repeating-linear-gradient(0deg,transparent,transparent 39px,rgba(0,255,136,.03) 39px,rgba(0,255,136,.03) 40px),
+    repeating-linear-gradient(90deg,transparent,transparent 39px,rgba(0,255,136,.03) 39px,rgba(0,255,136,.03) 40px);
+}
+
+/* ── Header ── */
+#header{
+  padding:10px 16px;flex-shrink:0;
+  display:flex;justify-content:space-between;align-items:center;
+  border-bottom:1px solid var(--border);
+  background:rgba(0,10,3,.9);
+}
+#header h1{
+  font-family:'Share Tech Mono',monospace;
+  font-size:14px;letter-spacing:3px;color:var(--green);
+  text-shadow:0 0 12px var(--green-glow);
+}
+#hdr-right{display:flex;flex-direction:column;align-items:flex-end;gap:1px;}
+#hdr-status{font-size:11px;color:rgba(0,255,136,.5);font-family:'Share Tech Mono',monospace;}
+#hdr-count{font-size:13px;font-weight:700;color:var(--green);}
+
+/* ── Main layout ── */
+#main{flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative;}
+
+/* ── Radar ── */
+#radarWrap{
+  flex-shrink:0;height:52%;
+  display:flex;align-items:center;justify-content:center;
+  position:relative;padding:8px;
+}
+#radarCanvas{border-radius:50%;}
+
+/* ── Camera strip ── */
+#camWrap{
+  flex:1;position:relative;overflow:hidden;
+  border-top:1px solid var(--border);
+}
+#video{position:absolute;width:100%;height:100%;object-fit:cover;opacity:.85;}
+#camCanvas{position:absolute;width:100%;height:100%;z-index:2;}
+
+/* ── Car list ── */
+#carList{
+  position:absolute;bottom:0;left:0;right:0;z-index:25;
+  display:flex;gap:6px;padding:6px 10px;overflow-x:auto;
+  scrollbar-width:none;
+  background:linear-gradient(transparent,rgba(0,10,3,.95));
+}
+#carList::-webkit-scrollbar{display:none;}
+.car-chip{
+  flex-shrink:0;
+  background:rgba(0,20,8,.9);border:1px solid var(--border);
+  border-radius:10px;padding:6px 10px;
+  display:flex;flex-direction:column;gap:2px;min-width:90px;
+  transition:border-color .2s;
+}
+.car-chip.close{border-color:var(--red);box-shadow:0 0 8px rgba(255,59,59,.3);}
+.car-chip.med{border-color:var(--yellow);}
+.car-chip-ico{font-size:18px;text-align:center;}
+.car-chip-type{font-size:11px;font-weight:700;color:var(--green);letter-spacing:.5px;}
+.car-chip-dist{font-size:10px;color:rgba(0,255,136,.45);font-family:'Share Tech Mono',monospace;}
+.car-chip-dir{font-size:10px;color:rgba(0,255,136,.35);}
+
+/* ── Loader ── */
+#loader{
+  position:absolute;inset:0;z-index:50;
+  background:var(--bg);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
+}
+.ld-ico{font-size:48px;animation:pulse 1.5s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:.4;transform:scale(.95);}50%{opacity:1;transform:scale(1.05);}}
+.ld-title{font-family:'Share Tech Mono',monospace;font-size:16px;letter-spacing:3px;color:var(--green);}
+.ld-sub{font-size:12px;color:rgba(0,255,136,.4);letter-spacing:2px;}
+.ld-bar{width:180px;height:2px;background:rgba(0,255,136,.1);border-radius:1px;overflow:hidden;}
+.ld-fill{height:100%;background:var(--green);width:0%;transition:width .5s;box-shadow:0 0 8px var(--green-glow);}
+.ld-txt{font-size:11px;color:rgba(0,255,136,.4);font-family:'Share Tech Mono',monospace;letter-spacing:1px;}
+
+/* ── Start button ── */
+#startBtn{
+  position:absolute;z-index:60;top:50%;left:50%;transform:translate(-50%,-50%);
+  background:transparent;border:2px solid var(--green);color:var(--green);
+  border-radius:8px;padding:16px 36px;font-size:17px;font-weight:700;
+  font-family:'Rajdhani',sans-serif;letter-spacing:2px;cursor:pointer;
+  box-shadow:0 0 20px var(--green-glow);display:none;
+  transition:all .2s;
+}
+#startBtn:active{background:var(--green-dim);}
+
+/* ── Scan line animation ── */
+@keyframes scanRotate{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
+
+/* ── Controls ── */
+#controls{
+  position:absolute;top:8px;right:8px;z-index:30;
+  display:none;flex-direction:column;gap:8px;
+}
+.cbtn{
+  background:rgba(0,20,8,.85);border:1px solid var(--border);
+  border-radius:10px;padding:8px 12px;font-size:12px;font-weight:700;
+  font-family:'Rajdhani',sans-serif;letter-spacing:1px;cursor:pointer;
+  color:var(--green);transition:all .2s;
+}
+.cbtn:active{background:var(--green-dim);}
+.cbtn.active{background:var(--green-dim);border-color:var(--green-glow);}
+
+#flash{position:absolute;inset:0;z-index:70;background:#fff;pointer-events:none;opacity:0;}
+#net{width:100%;padding:5px;text-align:center;font-size:11px;font-weight:700;flex-shrink:0;display:none;font-family:'Share Tech Mono',monospace;letter-spacing:1px;}
+#net.off{background:rgba(127,29,29,.8);color:#fca5a5;display:block;}
+#net.on{background:rgba(20,83,45,.8);color:#86efac;display:block;}
+</style>
+</head>
+<body>
+
+<div id="net"></div>
+<div id="header">
+  <h1>🚗 CAR RADAR</h1>
+  <div id="hdr-right">
+    <div id="hdr-status">SCANNING...</div>
+    <div id="hdr-count">0 vozidel</div>
+  </div>
+</div>
+
+<div id="main">
+  <div id="radarWrap">
+    <canvas id="radarCanvas"></canvas>
+  </div>
+
+  <div id="camWrap">
+    <video id="video" playsinline autoplay muted></video>
+    <canvas id="camCanvas"></canvas>
+    <div id="carList"></div>
+  </div>
+
+  <div id="loader">
+    <div class="ld-ico">📡</div>
+    <div class="ld-title">CAR RADAR</div>
+    <div class="ld-sub">INICIALIZACE SYSTÉMU</div>
+    <div class="ld-bar"><div class="ld-fill" id="ldFill"></div></div>
+    <div class="ld-txt" id="ldTxt">načítám...</div>
+  </div>
+
+  <button id="startBtn">▶ SPUSTIT RADAR</button>
+
+  <div id="controls">
+    <button class="cbtn" id="camBtn">🔄 KAMERA</button>
+    <button class="cbtn" id="photoBtn">📷 FOTO</button>
+  </div>
+
+  <div id="flash"></div>
+</div>
+
+<script>
+const _cw=console.warn.bind(console);
+console.warn=(...a)=>{const s=String(a[0]||'');if(s.includes('already registered')||s.includes('already been set')||s.includes('Reusing'))return;_cw(...a);};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.21.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.0/dist/mobilenet.min.js"></script>
+<script>
+// ── DOM ───────────────────────────────────────────────────────────────────
+const video      = document.getElementById('video');
+const camCanvas  = document.getElementById('camCanvas');
+const camCtx     = camCanvas.getContext('2d');
+const radarCanvas= document.getElementById('radarCanvas');
+const rCtx       = radarCanvas.getContext('2d');
+const carList    = document.getElementById('carList');
+const startBtn   = document.getElementById('startBtn');
+const camBtn     = document.getElementById('camBtn');
+const photoBtn   = document.getElementById('photoBtn');
+const flashEl    = document.getElementById('flash');
+const ldFill     = document.getElementById('ldFill');
+const ldTxt      = document.getElementById('ldTxt');
+const hdrStatus  = document.getElementById('hdr-status');
+const hdrCount   = document.getElementById('hdr-count');
+const controls   = document.getElementById('controls');
+
+// ── Models ────────────────────────────────────────────────────────────────
+let cocoModel=null, mnModel=null;
+let stream=null, running=false, starting=false, facingMode='environment';
+
+// ── Car types — COCO + MobileNet překlady ─────────────────────────────────
+const VEHICLE_CLASSES=['car','truck','bus','motorcycle','bicycle','train','boat','airplane'];
+const VEHICLE_CS={
+  car:'🚗 Auto', truck:'🚛 Náklaďák', bus:'🚌 Autobus',
+  motorcycle:'🏍 Motorka', bicycle:'🚲 Kolo',
+  train:'🚂 Vlak', boat:'⛵ Loď', airplane:'✈️ Letadlo',
+};
+
+// MobileNet → české typy aut
+const MN_CARS={
+  'sports car':'🏎️ Sporťák','race car':'🏎️ Závoďák','convertible':'🚗 Kabriolet',
+  'jeep':'🚙 Jeep','pickup truck':'🛻 Pickup','minivan':'🚐 Minivan',
+  'ambulance':'🚑 Sanitka','fire engine':'🚒 Hasiči','police car':'🚓 Policie',
+  'limousine':'🚗 Limuzína','taxi cab':'🚕 Taxi','school bus':'🚌 Školní bus',
+  'freight car':'🚃 Nákladní vůz','trailer truck':'🚚 Kamion',
+  'go-kart':'🏎️ Motokára','tow truck':'🚗 Odtahovka',
+  'sedan':'🚗 Sedan','hatchback':'🚗 Hatchback','suv':'🚙 SUV',
+  'coupe':'🚗 Kupé','wagon':'🚗 Kombi',
+};
+
+// ── Detekované objekty — tracker ──────────────────────────────────────────
+let vehicles=[]; // [{id, x, y, w, h, score, class, label, dist, angle, miss, age, mnLabel}]
+let nextId=1;
+let scanAngle=0; // rotující radar paprsek
+
+// ── Klasifikace canvasu ────────────────────────────────────────────────────
+const clsBuf=document.createElement('canvas');
+const clsCtx=clsBuf.getContext('2d');
+clsBuf.width=224; clsBuf.height=224;
+const mnCache=new Map();
+
+async function classifyCar(bbox){
+  if(!mnModel) return null;
+  const [x,y,w,h]=bbox;
+  if(w<40||h<30) return null;
+  const key=`${Math.round(x/30)},${Math.round(y/30)}`;
+  if(mnCache.has(key)) return mnCache.get(key);
+  try{
+    clsCtx.drawImage(video,x,y,w,h,0,0,224,224);
+    const preds=await mnModel.classify(clsBuf,5);
+    for(const p of preds){
+      const lc=p.className.toLowerCase();
+      for(const[k,v] of Object.entries(MN_CARS)){
+        if(lc.includes(k)&&p.probability>0.12){
+          const result={label:v,pct:Math.round(p.probability*100)};
+          mnCache.set(key,result);
+          if(mnCache.size>30) mnCache.delete(mnCache.keys().next().value);
+          return result;
+        }
+      }
+    }
+    // Fallback — první výsledek zkrácený
+    const fb=preds[0]?.className.split(',')[0].trim();
+    const result=fb?{label:'🚗 '+fb,pct:Math.round(preds[0].probability*100)}:null;
+    mnCache.set(key,result);
+    return result;
+  }catch(e){return null;}
+}
+
+// ── Vzdálenost odhad ──────────────────────────────────────────────────────
+function estDist(bboxH){
+  // Průměrná výška auta ~150cm, ohnisková vzdálenost ~700px
+  const cm=(150*700)/bboxH;
+  if(cm<200)  return{t:Math.round(cm)+'cm',v:cm,c:'#ff3b3b'};
+  if(cm<1500) return{t:(Math.round(cm/100)/10).toFixed(1)+'m',v:cm,c:'#ffd060'};
+  return      {t:Math.round(cm/100)+'0m+',v:cm,c:'#00ff88'};
+}
+
+// ── Směr ze středu kamery ─────────────────────────────────────────────────
+function getDir(bboxX,bboxW){
+  const cx=(bboxX+bboxW/2)/video.videoWidth; // 0=vlevo, 1=vpravo
+  const dev=cx-0.5; // -0.5 až 0.5
+  if(dev<-0.3) return{t:'◀ Vlevo',a:-60};
+  if(dev<-0.1) return{t:'↖ Vlevo-vpřed',a:-25};
+  if(dev< 0.1) return{t:'↑ Přímo',a:0};
+  if(dev< 0.3) return{t:'↗ Vpravo-vpřed',a:25};
+  return           {t:'▶ Vpravo',a:60};
+}
+
+// ── NMS ───────────────────────────────────────────────────────────────────
+function iou(a,b){
+  const x1=Math.max(a[0],b[0]),y1=Math.max(a[1],b[1]);
+  const x2=Math.min(a[0]+a[2],b[0]+b[2]),y2=Math.min(a[1]+a[3],b[1]+b[3]);
+  const i=Math.max(0,x2-x1)*Math.max(0,y2-y1);
+  return i/(a[2]*a[3]+b[2]*b[3]-i+1e-5);
+}
+
+// ── Canvas helpers ─────────────────────────────────────────────────────────
+let cW=0,cH=0;
+function maybeResize(){
+  const wrap=document.getElementById('camWrap');
+  if(wrap.offsetWidth!==cW||wrap.offsetHeight!==cH){
+    cW=camCanvas.width=wrap.offsetWidth;
+    cH=camCanvas.height=wrap.offsetHeight;
+  }
+}
+function getR(){
+  const vw=video.videoWidth,vh=video.videoHeight,cw=camCanvas.width,ch=camCanvas.height;
+  if(!vw||!vh) return{x:0,y:0,sx:1,sy:1};
+  const va=vw/vh,ca=cw/ch;
+  let dw,dh;
+  if(va>ca){dh=ch;dw=ch*va;}else{dw=cw;dh=cw/va;}
+  return{x:(cw-dw)/2,y:(ch-dh)/2,sx:dw/vw,sy:dh/vh};
+}
+
+// ── Radar kreslení ────────────────────────────────────────────────────────
+function sizeRadar(){
+  const wrap=document.getElementById('radarWrap');
+  const s=Math.min(wrap.offsetWidth,wrap.offsetHeight)-16;
+  radarCanvas.width=s; radarCanvas.height=s;
+  return s;
+}
+
+function drawRadar(){
+  const s=radarCanvas.width;
+  if(!s) return;
+  const cx=s/2, cy=s/2, r=s/2-4;
+  rCtx.clearRect(0,0,s,s);
+
+  // Pozadí
+  rCtx.fillStyle='rgba(0,8,3,0.95)';
+  rCtx.beginPath(); rCtx.arc(cx,cy,r,0,Math.PI*2); rCtx.fill();
+
+  // Soustředné kružnice
+  const rings=[.25,.5,.75,1];
+  const ringLabels=['Blízko','~5m','~15m','~30m+'];
+  rings.forEach((f,i)=>{
+    rCtx.strokeStyle=`rgba(0,255,136,${0.06+i*0.04})`;
+    rCtx.lineWidth=1;
+    rCtx.beginPath(); rCtx.arc(cx,cy,r*f,0,Math.PI*2); rCtx.stroke();
+    if(i<rings.length-1){
+      rCtx.fillStyle='rgba(0,255,136,.2)';
+      rCtx.font='9px Share Tech Mono,monospace';
+      rCtx.fillText(ringLabels[i],cx+r*f+3,cy-2);
+    }
+  });
+
+  // Kříž
+  rCtx.strokeStyle='rgba(0,255,136,.12)';
+  rCtx.lineWidth=1;
+  rCtx.beginPath();
+  rCtx.moveTo(cx,cy-r); rCtx.lineTo(cx,cy+r);
+  rCtx.moveTo(cx-r,cy); rCtx.lineTo(cx+r,cy);
+  rCtx.stroke();
+
+  // Rotující paprsek (sweep)
+  scanAngle=(scanAngle+2)%360;
+  const sweepRad=scanAngle*Math.PI/180;
+  const grad=rCtx.createConicalGradient
+    ? null // fallback
+    : null;
+  // Paprsek
+  rCtx.save();
+  rCtx.beginPath();
+  rCtx.moveTo(cx,cy);
+  rCtx.arc(cx,cy,r,sweepRad-0.4,sweepRad);
+  rCtx.closePath();
+  const g=rCtx.createRadialGradient(cx,cy,0,cx,cy,r);
+  g.addColorStop(0,'rgba(0,255,136,0)');
+  g.addColorStop(1,'rgba(0,255,136,.35)');
+  rCtx.fillStyle=g;
+  rCtx.fill();
+  rCtx.restore();
+
+  // Čára paprsku
+  rCtx.strokeStyle='rgba(0,255,136,.7)';
+  rCtx.lineWidth=1.5;
+  rCtx.beginPath();
+  rCtx.moveTo(cx,cy);
+  rCtx.lineTo(cx+Math.cos(sweepRad)*r,cy+Math.sin(sweepRad)*r);
+  rCtx.stroke();
+
+  // Vozidla na radaru
+  for(const v of vehicles){
+    if(v.miss>3) continue;
+    // Vzdálenost → poloměr na radaru
+    const dist=v.dist||{v:5000};
+    const maxCm=3000; // 30m = plný radar
+    const rr=Math.min(r*0.9, (dist.v/maxCm)*r*0.9);
+    // Úhel z pozice v kameře
+    const angleDeg=(v.angle||0);
+    const angleRad=(angleDeg-90)*Math.PI/180;
+    const px=cx+Math.cos(angleRad)*rr;
+    const py=cy+Math.sin(angleRad)*rr;
+
+    // Dot
+    const isClose=dist.v<200;
+    const col=isClose?'#ff3b3b':dist.v<1000?'#ffd060':'#00ff88';
+    rCtx.fillStyle=col;
+    rCtx.shadowColor=col;
+    rCtx.shadowBlur=isClose?12:6;
+    rCtx.beginPath(); rCtx.arc(px,py,isClose?6:4,0,Math.PI*2); rCtx.fill();
+    rCtx.shadowBlur=0;
+
+    // Label
+    rCtx.fillStyle='rgba(0,255,136,.8)';
+    rCtx.font='9px Rajdhani,sans-serif';
+    rCtx.fillText(v.mnLabel?.label||VEHICLE_CS[v.class]||'🚗',px+7,py-2);
+  }
+
+  // Střed — ty
+  rCtx.fillStyle='#00ff88';
+  rCtx.shadowColor='#00ff88';rCtx.shadowBlur=10;
+  rCtx.beginPath(); rCtx.arc(cx,cy,4,0,Math.PI*2); rCtx.fill();
+  rCtx.shadowBlur=0;
+
+  // Rámeček
+  rCtx.strokeStyle='rgba(0,255,136,.35)';
+  rCtx.lineWidth=2;
+  rCtx.beginPath(); rCtx.arc(cx,cy,r,0,Math.PI*2); rCtx.stroke();
+}
+
+// ── Kamera overlay ────────────────────────────────────────────────────────
+function drawCam(){
+  camCtx.clearRect(0,0,camCanvas.width,camCanvas.height);
+  const r=getR();
+  for(const v of vehicles){
+    if(v.miss>3) continue;
+    const bx=r.x+v.x*r.sx, by=r.y+v.y*r.sy;
+    const bw=v.w*r.sx, bh=v.h*r.sy;
+    const isClose=v.dist&&v.dist.v<200;
+    const col=isClose?'#ff3b3b':v.dist?.v<1000?'#ffd060':'#00ff88';
+
+    // Box
+    camCtx.strokeStyle=col; camCtx.lineWidth=2;
+    camCtx.shadowColor=col; camCtx.shadowBlur=8;
+    camCtx.strokeRect(bx,by,bw,bh);
+    camCtx.shadowBlur=0;
+
+    // Rohové závorky
+    const l=Math.min(bw,bh)*.2;
+    camCtx.strokeStyle=col; camCtx.lineWidth=3; camCtx.lineCap='round';
+    camCtx.beginPath();
+    camCtx.moveTo(bx,by+l);camCtx.lineTo(bx,by);camCtx.lineTo(bx+l,by);
+    camCtx.moveTo(bx+bw-l,by);camCtx.lineTo(bx+bw,by);camCtx.lineTo(bx+bw,by+l);
+    camCtx.moveTo(bx+bw,by+bh-l);camCtx.lineTo(bx+bw,by+bh);camCtx.lineTo(bx+bw-l,by+bh);
+    camCtx.moveTo(bx+l,by+bh);camCtx.lineTo(bx,by+bh);camCtx.lineTo(bx,by+bh-l);
+    camCtx.stroke();
+
+    // Label
+    const lbl=v.mnLabel?.label||(VEHICLE_CS[v.class]||'🚗 Vozidlo');
+    const pct=Math.round(v.score*100);
+    camCtx.font='bold 15px Rajdhani,sans-serif';
+    const tw=camCtx.measureText(lbl+' '+pct+'%').width+14;
+    camCtx.fillStyle=isClose?'rgba(180,0,0,.85)':'rgba(0,40,15,.85)';
+    camCtx.fillRect(bx,by-22,tw,20);
+    camCtx.fillStyle='#fff';
+    camCtx.fillText(lbl+' '+pct+'%',bx+7,by-6);
+
+    // Vzdálenost
+    if(v.dist){
+      camCtx.font='bold 13px Share Tech Mono,monospace';
+      const dw=camCtx.measureText('📏 '+v.dist.t).width+12;
+      camCtx.fillStyle='rgba(0,10,4,.85)';
+      camCtx.fillRect(bx,by+bh+3,dw,17);
+      camCtx.fillStyle=v.dist.c;
+      camCtx.fillText('📏 '+v.dist.t,bx+6,by+bh+15);
+    }
+  }
+}
+
+// ── Car chips dole ────────────────────────────────────────────────────────
+function updateCarList(){
+  carList.innerHTML='';
+  const vis=vehicles.filter(v=>v.miss<=3).sort((a,b)=>(a.dist?.v||9999)-(b.dist?.v||9999));
+  for(const v of vis){
+    const chip=document.createElement('div');
+    const isClose=v.dist&&v.dist.v<200;
+    const isMed=v.dist&&v.dist.v<1000;
+    chip.className='car-chip'+(isClose?' close':isMed?' med':'');
+    chip.innerHTML=`
+      <div class="car-chip-ico">${(v.mnLabel?.label||VEHICLE_CS[v.class]||'🚗').split(' ')[0]}</div>
+      <div class="car-chip-type">${(v.mnLabel?.label||VEHICLE_CS[v.class]||'Auto').split(' ').slice(1).join(' ')||'Vozidlo'}</div>
+      <div class="car-chip-dist">${v.dist?.t||'?'}</div>
+      <div class="car-chip-dir">${v.dirLabel||'—'}</div>
+    `;
+    carList.appendChild(chip);
+  }
+  hdrCount.textContent=vis.length+' vozidel';
+}
+
+// ── Draw loop ─────────────────────────────────────────────────────────────
+let lastDraw=0;
+function drawLoop(ts){
+  if(!running) return;
+  maybeResize();
+  if(ts-lastDraw>=33){ // ~30fps
+    lastDraw=ts;
+    drawRadar();
+    drawCam();
+    updateCarList();
+  }
+  requestAnimationFrame(drawLoop);
+}
+
+// ── Detection ─────────────────────────────────────────────────────────────
+const detBuf=document.createElement('canvas');
+const detCtx=detBuf.getContext('2d');
+let detBusy=false;
+
+async function detLoop(){
+  while(running){
+    if(!detBusy && cocoModel && video.readyState>=2){
+      detBusy=true;
+      try{
+        const W=480, H=Math.round(480*(video.videoHeight/video.videoWidth));
+        detBuf.width=W; detBuf.height=H;
+        detCtx.drawImage(video,0,0,W,H);
+        const raw=await cocoModel.detect(detBuf,20,0.25);
+        const sx=video.videoWidth/W, sy=video.videoHeight/H;
+
+        const dets=[];
+        for(const o of raw){
+          if(!VEHICLE_CLASSES.includes(o.class)) continue;
+          dets.push({
+            bbox:[o.bbox[0]*sx,o.bbox[1]*sy,o.bbox[2]*sx,o.bbox[3]*sy],
+            score:o.score,
+            class:o.class
+          });
+        }
+
+        // Update vehicle tracker
+        const matched=new Set();
+        for(const d of dets){
+          let best=null, bv=0.2;
+          for(const v of vehicles){
+            if(matched.has(v.id)) continue;
+            const s=iou(d.bbox,[v.x,v.y,v.w,v.h]);
+            if(s>bv){bv=s;best=v;}
+          }
+          if(best){
+            best.x+=(d.bbox[0]-best.x)*.25;
+            best.y+=(d.bbox[1]-best.y)*.25;
+            best.w+=(d.bbox[2]-best.w)*.25;
+            best.h+=(d.bbox[3]-best.h)*.25;
+            best.score=best.score*.5+d.score*.5;
+            best.miss=0; best.age++;
+            best.dist=estDist(d.bbox[3]);
+            const dir=getDir(d.bbox[0],d.bbox[2]);
+            best.angle=dir.a;
+            best.dirLabel=dir.t;
+            // MobileNet klasifikace každých 5 snímků
+            if(best.age%5===0){
+              classifyCar(d.bbox).then(mn=>{if(mn)best.mnLabel=mn;});
+            }
+            matched.add(best.id);
+          }else{
+            const dup=vehicles.some(v=>iou(d.bbox,[v.x,v.y,v.w,v.h])>0.3);
+            if(!dup){
+              const dir=getDir(d.bbox[0],d.bbox[2]);
+              const nv={
+                id:nextId++, x:d.bbox[0],y:d.bbox[1],w:d.bbox[2],h:d.bbox[3],
+                score:d.score, class:d.class, miss:0, age:0,
+                dist:estDist(d.bbox[3]),
+                angle:dir.a, dirLabel:dir.t, mnLabel:null
+              };
+              vehicles.push(nv);
+              // Okamžitě klasifikuj
+              classifyCar(d.bbox).then(mn=>{if(mn)nv.mnLabel=mn;});
+            }
+          }
+        }
+        for(const v of vehicles) if(!matched.has(v.id)) v.miss++;
+        vehicles=vehicles.filter(v=>v.miss<=8);
+
+        hdrStatus.textContent=`SCAN · ${vehicles.filter(v=>v.miss<=2).length} detekce`;
+      }catch(e){}
+      detBusy=false;
+    }
+    await new Promise(r=>setTimeout(r,80));
+  }
+}
+
+// ── Load models ───────────────────────────────────────────────────────────
+async function loadModels(){
+  try{
+    ldTxt.textContent='COCO detektor vozidel...'; ldFill.style.width='20%';
+    cocoModel=await cocoSsd.load({base:'lite_mobilenet_v2'});
+    ldFill.style.width='60%';
+    ldTxt.textContent='MobileNet klasifikátor...';
+    mnModel=await mobilenet.load({version:2,alpha:1.0});
+    ldFill.style.width='100%';
+    setTimeout(()=>{
+      document.getElementById('loader').style.display='none';
+      startBtn.style.display='block';
+    },300);
+  }catch(e){
+    ldTxt.textContent='CHYBA: '+e.message;
+  }
+}
+
+// ── Start camera ──────────────────────────────────────────────────────────
+async function startCamera(){
+  if(starting) return; starting=true;
+  running=false;
+  await new Promise(r=>setTimeout(r,60));
+  if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}
+  video.srcObject=null;
+  startBtn.style.display='none';
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({
+      video:{facingMode,width:{ideal:1280},height:{ideal:720}},audio:false
+    });
+    video.srcObject=stream;
+    await new Promise((res,rej)=>{
+      const to=setTimeout(()=>rej(new Error('Timeout')),8000);
+      video.onloadedmetadata=()=>{clearTimeout(to);res();};
+      video.onerror=e=>{clearTimeout(to);rej(e);};
+    });
+    try{await video.play();}catch(e){await new Promise(r=>setTimeout(r,200));await video.play();}
+    sizeRadar();
+    controls.style.display='flex';
+    running=true; starting=false;
+    vehicles=[];
+    requestAnimationFrame(drawLoop);
+    detLoop();
+  }catch(e){
+    starting=false; running=false;
+    startBtn.style.display='block';
+    ldTxt.textContent='Kamera selhala: '+e.message;
+    document.getElementById('loader').style.display='flex';
+  }
+}
+
+// ── Controls ──────────────────────────────────────────────────────────────
+startBtn.addEventListener('click',startCamera);
+camBtn.addEventListener('click',()=>{
+  facingMode=facingMode==='environment'?'user':'environment';
+  vehicles=[]; startCamera();
+});
+photoBtn.addEventListener('click',()=>{
+  flashEl.style.transition='none'; flashEl.style.opacity='.8';
+  setTimeout(()=>{flashEl.style.transition='opacity .3s';flashEl.style.opacity='0';},80);
+  const s=document.createElement('canvas');
+  s.width=video.videoWidth; s.height=video.videoHeight;
+  const sc=s.getContext('2d');
+  sc.drawImage(video,0,0);
+  sc.drawImage(camCanvas,0,0,s.width,s.height);
+  const a=document.createElement('a');
+  a.download='radar-'+Date.now()+'.jpg';
+  a.href=s.toDataURL('image/jpeg',.9); a.click();
+});
+
+// ── Net ───────────────────────────────────────────────────────────────────
+const netEl=document.getElementById('net');
+function updNet(){
+  if(navigator.onLine){netEl.className='on';netEl.textContent='◉ ONLINE';setTimeout(()=>{netEl.style.display='none';},2000);}
+  else{netEl.className='off';netEl.textContent='◉ OFFLINE';}
+}
+window.addEventListener('online',updNet);window.addEventListener('offline',updNet);updNet();
+window.addEventListener('resize',()=>{sizeRadar();cW=0;});
+
+// ── Boot ──────────────────────────────────────────────────────────────────
+loadModels();
+</script>
+</body>
+</html>
