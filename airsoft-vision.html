@@ -8,148 +8,150 @@
 *{margin:0;padding:0;box-sizing:border-box;}
 body{background:#000;color:#fff;font-family:system-ui,sans-serif;height:100dvh;display:flex;flex-direction:column;overflow:hidden;}
 
+/* Splash */
 #splash{position:fixed;inset:0;z-index:200;background:#050a05;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .5s;}
 #splash.fade{opacity:0;pointer-events:none;}
-#sp-icon{font-size:54px;margin-bottom:10px;}
-#sp-title{font-size:23px;font-weight:800;letter-spacing:2px;color:#00e5a0;}
-#sp-sub{font-size:10px;color:rgba(0,229,160,.4);letter-spacing:4px;text-transform:uppercase;margin:5px 0 22px;}
-.spb{padding:5px 16px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin:3px 0;}
-.spb.g{background:rgba(0,229,160,.1);border:1px solid rgba(0,229,160,.35);color:#00e5a0;}
-.spb.r{background:rgba(255,59,59,.08);border:1px solid rgba(255,59,59,.3);color:#ff6b6b;}
-.spb.y{background:rgba(255,208,60,.08);border:1px solid rgba(255,208,60,.3);color:#ffd03c;}
-.spb.gr{background:rgba(148,163,184,.08);border:1px solid rgba(148,163,184,.25);color:#94a3b8;}
-#sp-year{font-size:10px;color:rgba(0,229,160,.2);letter-spacing:4px;margin-top:16px;}
-#sp-bar{width:160px;height:2px;background:rgba(0,229,160,.1);border-radius:1px;overflow:hidden;margin-top:12px;}
-#sp-fill{height:100%;width:0%;background:#00e5a0;transition:width 5s linear;}
+.sp-ico{font-size:52px;margin-bottom:8px;}
+.sp-tit{font-size:22px;font-weight:800;letter-spacing:1px;color:#00e5a0;}
+.sp-sub{font-size:10px;color:rgba(0,229,160,.35);letter-spacing:4px;text-transform:uppercase;margin:4px 0 20px;}
+.spb{padding:4px 14px;border-radius:18px;font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin:3px 0;}
+.spb.g{background:rgba(0,229,160,.1);border:1px solid rgba(0,229,160,.3);color:#00e5a0;}
+.spb.r{background:rgba(255,59,59,.08);border:1px solid rgba(255,59,59,.25);color:#ff6b6b;}
+.spb.y{background:rgba(255,208,60,.08);border:1px solid rgba(255,208,60,.25);color:#ffd03c;}
+.spb.gr{background:rgba(148,163,184,.08);border:1px solid rgba(148,163,184,.2);color:#94a3b8;}
+.sp-yr{font-size:10px;color:rgba(0,229,160,.15);letter-spacing:4px;margin-top:14px;}
+.sp-bar{width:150px;height:2px;background:rgba(0,229,160,.1);border-radius:1px;overflow:hidden;margin-top:10px;}
+.sp-fill{height:100%;width:0%;background:#00e5a0;transition:width 4s linear;}
 
-#header{padding:7px 16px 5px;text-align:center;flex-shrink:0;background:#000;}
-#header h1{font-size:13px;font-weight:800;letter-spacing:1px;color:#00e5a0;}
-#status{font-size:10px;color:#444;margin-top:1px;min-height:13px;}
+/* Header */
+#header{padding:6px 12px;background:#000;flex-shrink:0;display:flex;justify-content:space-between;align-items:center;}
+#header h1{font-size:12px;font-weight:800;letter-spacing:1px;color:#00e5a0;}
+#status{font-size:10px;color:#444;}
 
+/* Camera */
 #container{position:relative;width:100%;flex:1;overflow:hidden;background:#000;}
 #video{position:absolute;width:100%;height:100%;object-fit:cover;}
-#thermoOv{position:absolute;width:100%;height:100%;object-fit:cover;z-index:1;display:none;}
-#canvas{position:absolute;width:100%;height:100%;z-index:3;}
+#canvas{position:absolute;width:100%;height:100%;z-index:2;}
 
-/* Loader */
-#loader{position:absolute;z-index:30;top:50%;left:50%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:10px;}
-.spin{width:32px;height:32px;border:3px solid rgba(0,229,160,.15);border-top-color:#00e5a0;border-radius:50%;animation:sp .7s linear infinite;}
-@keyframes sp{to{transform:rotate(360deg);}}
-.spint{font-size:11px;color:#444;text-align:center;max-width:200px;}
-#pbar{width:160px;height:2px;background:rgba(0,229,160,.1);border-radius:1px;overflow:hidden;}
-#pfill{height:100%;background:#00e5a0;border-radius:1px;width:0%;transition:width .4s;}
+/* HUD — stats panel dole */
+#hud{
+  position:absolute;bottom:0;left:0;right:0;z-index:25;
+  background:linear-gradient(transparent,rgba(0,0,0,.85));
+  padding:20px 14px 10px;
+  display:none;
+  flex-direction:column;gap:2px;
+  pointer-events:none;
+}
+.hud-row{display:flex;justify-content:space-between;align-items:center;}
+.hud-stat{font-size:10px;font-family:monospace;}
+.hud-stat span{color:rgba(255,255,255,.35);}
+.hud-stat b{color:#00e5a0;}
+.hud-count{font-size:16px;font-weight:800;color:#fff;}
+.hud-count.enemy{color:#ff3b3b;}
 
-#startBtn{position:absolute;z-index:20;top:50%;left:50%;transform:translate(-50%,-50%);background:#00e5a0;color:#000;border:none;border-radius:50px;padding:14px 36px;font-size:16px;font-weight:800;cursor:pointer;display:none;}
+/* Crosshair */
+#xhair{position:absolute;inset:0;z-index:3;pointer-events:none;display:none;}
 
-/* Vision modes — nahoře vlevo */
-#visionBar{position:absolute;top:8px;left:8px;z-index:25;display:none;gap:2px;flex-wrap:wrap;max-width:220px;}
-.vbtn{background:rgba(0,0,0,.7);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.45);font-size:10px;font-weight:700;cursor:pointer;padding:5px 9px;border-radius:14px;white-space:nowrap;transition:all .15s;}
-.vbtn.on{background:rgba(0,229,160,.25);border-color:rgba(0,229,160,.6);color:#00e5a0;}
-.vbtn:active{transform:scale(.91);}
-
-/* Team bar — pod vision */
-#teamBar{position:absolute;top:44px;left:8px;z-index:25;display:none;gap:5px;align-items:center;}
-.tbtn{border:none;border-radius:16px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;opacity:.5;transition:opacity .2s,transform .1s;}
-.tbtn:active{transform:scale(.93);}
-.tbtn.red{background:rgba(255,59,59,.25);color:#ff6b6b;border:1.5px solid rgba(255,59,59,.45);}
-.tbtn.blue{background:rgba(56,189,248,.25);color:#38bdf8;border:1.5px solid rgba(56,189,248,.45);}
+/* Team bar */
+#teamBar{
+  position:absolute;top:8px;left:50%;transform:translateX(-50%);
+  z-index:25;display:none;gap:6px;
+  background:rgba(0,0,0,.65);border:1px solid rgba(255,255,255,.1);
+  border-radius:24px;padding:5px 10px;
+}
+.tbtn{border:none;border-radius:16px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;opacity:.45;transition:opacity .18s;}
+.tbtn.red{background:rgba(255,59,59,.3);color:#ff6b6b;border:1.5px solid rgba(255,59,59,.4);}
+.tbtn.blue{background:rgba(56,189,248,.3);color:#38bdf8;border:1.5px solid rgba(56,189,248,.4);}
 .tbtn.sel.red{background:#ff3b3b;color:#fff;opacity:1;}
 .tbtn.sel.blue{background:#38bdf8;color:#000;opacity:1;}
 
-/* HUD — nahoře vpravo */
-#hud{position:absolute;top:8px;right:8px;z-index:25;display:none;flex-direction:column;align-items:flex-end;gap:2px;}
-#fps-lbl{font-size:9px;color:rgba(255,255,255,.25);font-family:monospace;}
-#count-lbl{font-size:11px;font-weight:700;color:#00e5a0;}
-
-/* Zoom bar — dole uprostřed */
-#zoomBar{position:absolute;bottom:74px;left:50%;transform:translateX(-50%);z-index:20;display:none;gap:2px;align-items:center;background:rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.1);border-radius:24px;padding:4px 8px;}
-.zb{background:none;border:none;color:rgba(255,255,255,.45);font-size:11px;font-weight:700;cursor:pointer;padding:4px 7px;border-radius:12px;}
+/* Zoom bar */
+#zoomBar{
+  position:absolute;bottom:70px;left:50%;transform:translateX(-50%);
+  z-index:25;display:none;gap:2px;
+  background:rgba(0,0,0,.65);border:1px solid rgba(255,255,255,.1);
+  border-radius:22px;padding:4px 8px;pointer-events:auto;
+}
+.zb{background:none;border:none;color:rgba(255,255,255,.4);font-size:11px;font-weight:700;cursor:pointer;padding:4px 8px;border-radius:12px;}
 .zb.on{background:rgba(255,255,255,.18);color:#fff;}
 
-/* Dolní tlačítka */
-#controls{position:absolute;bottom:14px;right:12px;z-index:20;display:none;flex-direction:column;gap:7px;}
-.ctrl-btn{background:rgba(0,0,0,.65);border:1px solid rgba(255,255,255,.18);border-radius:50%;width:44px;height:44px;font-size:19px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#fff;}
-.ctrl-btn:active{transform:scale(.88);}
-
-/* Team label */
-#teamLabel{position:absolute;bottom:74px;left:50%;transform:translateX(-50%);z-index:24;font-size:10px;font-weight:700;letter-spacing:.5px;padding:3px 12px;border-radius:10px;display:none;white-space:nowrap;text-align:center;}
-#teamLabel.red{background:rgba(255,59,59,.8);color:#fff;}
-#teamLabel.blue{background:rgba(56,189,248,.8);color:#000;}
-
-/* ── Crosshair + compass ── */
-#crosshair {
-  position:absolute; inset:0; z-index:4; pointer-events:none; display:none;
+/* Vision toggle */
+#visionBar{
+  position:absolute;top:8px;left:8px;
+  z-index:25;display:none;gap:3px;
 }
+.vbtn{background:rgba(0,0,0,.65);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.4);font-size:10px;font-weight:700;cursor:pointer;padding:5px 8px;border-radius:12px;}
+.vbtn.on{background:rgba(0,229,160,.2);border-color:rgba(0,229,160,.5);color:#00e5a0;}
 
-#compass {
-  position:absolute; bottom:130px; right:12px; z-index:25;
-  width:60px; height:60px; display:none;
-}
+/* Buttons */
+#controls{position:absolute;bottom:12px;right:12px;z-index:25;display:none;flex-direction:column;gap:7px;}
+.cbtn{background:rgba(0,0,0,.65);border:1px solid rgba(255,255,255,.15);border-radius:50%;width:44px;height:44px;font-size:19px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#fff;}
+.cbtn:active{transform:scale(.88);}
+
+/* Loader */
+#loader{position:absolute;z-index:30;top:50%;left:50%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:8px;}
+.spin{width:30px;height:30px;border:3px solid rgba(0,229,160,.15);border-top-color:#00e5a0;border-radius:50%;animation:sp .7s linear infinite;}
+@keyframes sp{to{transform:rotate(360deg);}}
+.spint{font-size:11px;color:#444;text-align:center;}
+#pbar{width:150px;height:2px;background:rgba(0,229,160,.1);border-radius:1px;overflow:hidden;}
+#pfill{height:100%;background:#00e5a0;width:0%;transition:width .4s;}
+
+#startBtn{position:absolute;z-index:20;top:50%;left:50%;transform:translate(-50%,-50%);background:#00e5a0;color:#000;border:none;border-radius:50px;padding:14px 36px;font-size:16px;font-weight:800;cursor:pointer;display:none;}
 
 #flash{position:absolute;inset:0;z-index:50;background:#fff;pointer-events:none;opacity:0;}
 #net{width:100%;padding:4px 16px;text-align:center;font-size:10px;font-weight:600;flex-shrink:0;display:none;}
 #net.off{background:#7f1d1d;color:#fca5a5;display:block;}
 #net.on{background:#14532d;color:#86efac;display:block;}
-
-@media(orientation:landscape){
-  #header{padding:2px 16px;}
-  #header h1{font-size:11px;}
-  #visionBar{flex-direction:row;flex-wrap:nowrap;}
-}
 </style>
 </head>
 <body>
+
 <div id="splash">
-  <div id="sp-icon">🎯</div>
-  <div id="sp-title">AIRSOFT VISION</div>
-  <div id="sp-sub">Combat Detection System</div>
+  <div class="sp-ico">🎯</div>
+  <div class="sp-tit">AIRSOFT VISION</div>
+  <div class="sp-sub">Combat Detection</div>
   <div class="spb g">✍ Created by Lukamer</div>
   <div class="spb r">🔒 Protected Lukcheat</div>
   <div class="spb y">🔥 No Quality</div>
   <div class="spb gr">🎯 Airsoft Edition 2026</div>
-  <div id="sp-year">2026</div>
-  <div id="sp-bar"><div id="sp-fill"></div></div>
+  <div class="sp-yr">2026</div>
+  <div class="sp-bar"><div class="sp-fill" id="spFill"></div></div>
 </div>
 
 <div id="net"></div>
 <div id="header">
   <h1>🎯 AIRSOFT VISION</h1>
-  <div id="status">Načítám model...</div>
+  <div id="status">Načítám...</div>
 </div>
 
 <div id="container">
   <video id="video" playsinline autoplay muted></video>
-  <canvas id="thermoOv"></canvas>
   <canvas id="canvas"></canvas>
+  <canvas id="xhair"></canvas>
 
   <div id="loader">
     <div class="spin"></div>
     <div id="pbar"><div id="pfill"></div></div>
-    <div class="spint" id="ltxt">Připravuji...</div>
+    <div class="spint" id="ltxt">Načítám model...</div>
   </div>
 
   <button id="startBtn">Zapnout kameru</button>
 
+  <!-- Vision mode -->
   <div id="visionBar">
-    <button class="vbtn on" data-m="normal">🎥 Normal</button>
-    <button class="vbtn"    data-m="bw">⬛ B/W</button>
-    <button class="vbtn"    data-m="nvg">🌿 NVG</button>
-    <button class="vbtn"    data-m="thermo">🌡 Termo</button>
-    <button class="vbtn"    data-m="edge">🔳 Edge</button>
+    <button class="vbtn on" data-m="normal">🎥</button>
+    <button class="vbtn" data-m="bw">⬛</button>
+    <button class="vbtn" data-m="nvg">🌿</button>
+    <button class="vbtn" data-m="thermo">🌡</button>
   </div>
 
+  <!-- Team -->
   <div id="teamBar">
-    <button class="tbtn red"  id="btnRed">🔴 Červení</button>
+    <button class="tbtn red" id="btnRed">🔴 Červení</button>
     <button class="tbtn blue" id="btnBlue">🔵 Modří</button>
   </div>
 
-  <div id="hud">
-    <div id="fps-lbl">0 fps</div>
-    <div id="count-lbl"></div>
-  </div>
-
-  <div id="teamLabel"></div>
-
+  <!-- Zoom -->
   <div id="zoomBar">
     <button class="zb on" data-z="1">1×</button>
     <button class="zb" data-z="2">2×</button>
@@ -158,13 +160,24 @@ body{background:#000;color:#fff;font-family:system-ui,sans-serif;height:100dvh;d
     <button class="zb" data-z="6">6×</button>
   </div>
 
-  <div id="controls">
-    <div class="ctrl-btn" id="camToggle" title="Přepnout kameru">⟳</div>
-    <div class="ctrl-btn" id="photoBtn"  title="Foto">📷</div>
+  <!-- HUD stats -->
+  <div id="hud">
+    <div class="hud-row">
+      <div class="hud-count" id="hudCount">—</div>
+      <div class="hud-stat"><span>snímků: </span><b id="hudFrames">0</b></div>
+    </div>
+    <div class="hud-row">
+      <div class="hud-stat"><span>fps: </span><b id="hudFps">0</b>  <span>det/s: </span><b id="hudDps">0</b></div>
+      <div class="hud-stat"><span>vstup: </span><b id="hudSize">—</b></div>
+    </div>
   </div>
 
-  <canvas id="crosshair"></canvas>
-  <canvas id="compass"></canvas>
+  <!-- Controls -->
+  <div id="controls">
+    <div class="cbtn" id="camToggle">⟳</div>
+    <div class="cbtn" id="photoBtn">📷</div>
+  </div>
+
   <div id="flash"></div>
 </div>
 
@@ -176,80 +189,91 @@ console.warn=(...a)=>{const s=String(a[0]||'');if(s.includes('already registered
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
 <script>
 // ── DOM ───────────────────────────────────────────────────────────────────
-const video     =document.getElementById('video');
-const canvas    =document.getElementById('canvas');
-const ctx       =canvas.getContext('2d');
-const thermoOv  =document.getElementById('thermoOv');
-const tCtx      =thermoOv.getContext('2d');
-const statusEl  =document.getElementById('status');
-const startBtn  =document.getElementById('startBtn');
-const camToggle =document.getElementById('camToggle');
-const photoBtn  =document.getElementById('photoBtn');
-const flashEl   =document.getElementById('flash');
-const fpsLbl    =document.getElementById('fps-lbl');
-const countLbl  =document.getElementById('count-lbl');
-const controls  =document.getElementById('controls');
-const zoomBar   =document.getElementById('zoomBar');
-const teamBar   =document.getElementById('teamBar');
-const teamLabelEl=document.getElementById('teamLabel');
-const btnRed    =document.getElementById('btnRed');
-const btnBlue   =document.getElementById('btnBlue');
-const hudEl     =document.getElementById('hud');
-const visionBar =document.getElementById('visionBar');
+const video    =document.getElementById('video');
+const canvas   =document.getElementById('canvas');
+const ctx      =canvas.getContext('2d');
+const xhairEl  =document.getElementById('xhair');
+const xhCtx    =xhairEl.getContext('2d');
+const statusEl =document.getElementById('status');
+const startBtn =document.getElementById('startBtn');
+const camToggle=document.getElementById('camToggle');
+const photoBtn =document.getElementById('photoBtn');
+const flashEl  =document.getElementById('flash');
+const controls =document.getElementById('controls');
+const zoomBar  =document.getElementById('zoomBar');
+const teamBar  =document.getElementById('teamBar');
+const hudEl    =document.getElementById('hud');
+const visionBar=document.getElementById('visionBar');
+const hudCount =document.getElementById('hudCount');
+const hudFrames=document.getElementById('hudFrames');
+const hudFps   =document.getElementById('hudFps');
+const hudDps   =document.getElementById('hudDps');
+const hudSize  =document.getElementById('hudSize');
 
 // ── State ─────────────────────────────────────────────────────────────────
-let stream=null,running=false,starting=false;
-let facingMode='environment';
-let cocoModel=null;
-let myTeam=null;
+let stream=null, running=false, starting=false, facingMode='environment';
+let cocoModel=null, myTeam=null;
 const enemies=new Set();
 
-// ── Tracking (EMA smoothing, persistent IDs) ──────────────────────────────
-let tracks=[],nextId=1;
-const SMOOTH=0.3, MAX_MISS=10, MATCH_IOU=0.22;
+// ── Výkonnostní statistiky ────────────────────────────────────────────────
+let totalFrames=0;   // celkový počet vykreslených snímků
+let totalDets=0;     // celkový počet detekcí AI
+let drawFps=0, detPs=0;
+let drawCount=0, detCount=0, statLast=performance.now();
+
+function updateStats(){
+  const now=performance.now();
+  if(now-statLast>=1000){
+    drawFps=drawCount; detPs=detCount;
+    drawCount=0; detCount=0; statLast=now;
+    hudFps.textContent=drawFps;
+    hudDps.textContent=detPs;
+  }
+}
+
+// ── Tracker EMA ───────────────────────────────────────────────────────────
+let tracks=[], nextId=1;
+const SMOOTH=0.25, MAX_MISS=12;
 
 function iou(a,b){
   const x1=Math.max(a[0],b[0]),y1=Math.max(a[1],b[1]);
   const x2=Math.min(a[0]+a[2],b[0]+b[2]),y2=Math.min(a[1]+a[3],b[1]+b[3]);
   const i=Math.max(0,x2-x1)*Math.max(0,y2-y1);
-  return i/(a[2]*a[3]+b[2]*b[3]-i)||0;
+  return i/(a[2]*a[3]+b[2]*b[3]-i+1e-5);
 }
 
 function updateTracks(dets){
   const matched=new Set();
   for(const d of dets){
-    let best=null,bIou=MATCH_IOU;
+    let best=null, bv=0.2;
     for(const t of tracks){
       if(matched.has(t.id))continue;
-      const s=iou(d.bbox,[t.x,t.y,t.w,t.h]);
-      if(s>bIou){bIou=s;best=t;}
+      const v=iou(d.bbox,[t.x,t.y,t.w,t.h]);
+      if(v>bv){bv=v;best=t;}
     }
     if(best){
       best.x+=(d.bbox[0]-best.x)*SMOOTH;
       best.y+=(d.bbox[1]-best.y)*SMOOTH;
       best.w+=(d.bbox[2]-best.w)*SMOOTH;
       best.h+=(d.bbox[3]-best.h)*SMOOTH;
-      best.score=best.score*.7+d.score*.3;
-      best.missedFrames=0; best.age++;
-      best.isWeapon=d.isWeapon||false;
+      best.score=best.score*.6+d.score*.4;
+      best.miss=0; best.age++;
       matched.add(best.id);
     }else{
-      tracks.push({id:nextId++,x:d.bbox[0],y:d.bbox[1],w:d.bbox[2],h:d.bbox[3],
-        score:d.score,age:0,missedFrames:0,isWeapon:d.isWeapon||false});
+      tracks.push({id:nextId++,x:d.bbox[0],y:d.bbox[1],w:d.bbox[2],h:d.bbox[3],score:d.score,age:0,miss:0});
     }
   }
-  for(const t of tracks) if(!matched.has(t.id)) t.missedFrames++;
-  tracks=tracks.filter(t=>t.missedFrames<=MAX_MISS);
+  for(const t of tracks) if(!matched.has(t.id)) t.miss++;
+  tracks=tracks.filter(t=>t.miss<=MAX_MISS);
 }
 
-// ── Canvas / coord helpers ────────────────────────────────────────────────
-let canvasW=0,canvasH=0;
+// ── Canvas ────────────────────────────────────────────────────────────────
+let cW=0,cH=0;
 function maybeResize(){
   const c=document.getElementById('container');
-  if(c.offsetWidth!==canvasW||c.offsetHeight!==canvasH){
-    canvasW=canvas.width=c.offsetWidth;
-    canvasH=canvas.height=c.offsetHeight;
-    thermoOv.width=canvasW; thermoOv.height=canvasH;
+  if(c.offsetWidth!==cW||c.offsetHeight!==cH){
+    cW=canvas.width=xhairEl.width=c.offsetWidth;
+    cH=canvas.height=xhairEl.height=c.offsetHeight;
   }
 }
 function getR(){
@@ -261,50 +285,51 @@ function getR(){
   return{x:(cw-dw)/2,y:(ch-dh)/2,sx:dw/vw,sy:dh/vh};
 }
 
-function corners(bx,by,bw,bh,l,col,lw){
-  ctx.strokeStyle=col;ctx.lineWidth=lw||2.5;ctx.lineCap='round';
+// Draw box corners only (fast)
+function corners(bx,by,bw,bh,col,lw){
+  const l=Math.min(bw,bh)*.2;
+  ctx.strokeStyle=col; ctx.lineWidth=lw; ctx.lineCap='round';
   ctx.beginPath();
-  ctx.moveTo(bx,by+l);ctx.lineTo(bx,by);ctx.lineTo(bx+l,by);
+  ctx.moveTo(bx,by+l);   ctx.lineTo(bx,by);   ctx.lineTo(bx+l,by);
   ctx.moveTo(bx+bw-l,by);ctx.lineTo(bx+bw,by);ctx.lineTo(bx+bw,by+l);
   ctx.moveTo(bx+bw,by+bh-l);ctx.lineTo(bx+bw,by+bh);ctx.lineTo(bx+bw-l,by+bh);
   ctx.moveTo(bx+l,by+bh);ctx.lineTo(bx,by+bh);ctx.lineTo(bx,by+bh-l);
   ctx.stroke();
 }
+
 function pill(t,bx,by,bg,fg){
   ctx.font='bold 14px system-ui,sans-serif';
-  const tw=ctx.measureText(t).width+14;
-  ctx.fillStyle=bg;ctx.fillRect(bx,by-22,tw,20);
-  ctx.fillStyle=fg||'#fff';ctx.fillText(t,bx+7,by-6);
+  const tw=ctx.measureText(t).width+12;
+  ctx.fillStyle=bg; ctx.fillRect(bx,by-21,tw,19);
+  ctx.fillStyle=fg||'#fff'; ctx.fillText(t,bx+6,by-6);
 }
 function pillB(t,bx,by,bg,fg){
   ctx.font='bold 13px system-ui,sans-serif';
-  const tw=ctx.measureText(t).width+14;
-  ctx.fillStyle=bg;ctx.fillRect(bx,by+3,tw,19);
-  ctx.fillStyle=fg||'#fff';ctx.fillText(t,bx+7,by+16);
+  const tw=ctx.measureText(t).width+12;
+  ctx.fillStyle=bg; ctx.fillRect(bx,by+3,tw,18);
+  ctx.fillStyle=fg||'#fff'; ctx.fillText(t,bx+6,by+16);
 }
 
-// ── Vzdálenost ────────────────────────────────────────────────────────────
-function distLabel(h,sy){
+// Vzdálenost
+function dist(h,sy){
   const cm=(170*700)/(h*sy);
-  if(cm<80)  return{t:Math.round(cm)+'cm',c:'#ff4444'};
-  if(cm<300) return{t:(Math.round(cm/10)/10).toFixed(1)+'m',c:'#ffd03c'};
-  if(cm<5000)return{t:(Math.round(cm/100)/10).toFixed(0)+'m',c:'#00e5a0'};
-  return     {t:'>50m',c:'#666'};
+  if(cm<80) return{t:Math.round(cm)+'cm',c:'#ff4444'};
+  if(cm<400)return{t:(Math.round(cm/10)/10).toFixed(1)+'m',c:'#ffd03c'};
+  return    {t:Math.round(cm/100)+'0m+',c:'#00e5a0'};
 }
 
-// ── Team colors ───────────────────────────────────────────────────────────
-function boxStyle(id,isWeapon){
-  if(isWeapon) return{col:'#ffd03c',glow:'rgba(255,208,60,.2)',lbl:'⚠️ ZBRAŇ'};
-  if(myTeam===null) return{col:'#00e5a0',glow:'rgba(0,229,160,.15)',lbl:'🎯'};
-  if(enemies.has(id)) return{col:'#ff3b3b',glow:'rgba(255,59,59,.25)',lbl:'🔴 NEPŘÍTEL'};
-  return{col:'#00e5a0',glow:'rgba(0,229,160,.12)',lbl:'🟢 SPOJENEC'};
+// Tým
+function bStyle(id){
+  if(myTeam===null) return{col:'#00e5a0',glow:'rgba(0,229,160,.12)',lbl:'🎯'};
+  if(enemies.has(id)) return{col:'#ff3b3b',glow:'rgba(255,59,59,.2)',lbl:'🔴 NEPŘÍTEL'};
+  return{col:'#00e5a0',glow:'rgba(0,229,160,.1)',lbl:'🟢 SPOJENEC'};
 }
 
-// Tap na canvas = označit nepřítele
+// Tap = označit nepřítele
 canvas.addEventListener('click',e=>{
-  if(myTeam===null)return;
+  if(!myTeam)return;
   const rect=canvas.getBoundingClientRect();
-  const cx=e.clientX-rect.left,cy=e.clientY-rect.top;
+  const cx=e.clientX-rect.left, cy=e.clientY-rect.top;
   const r=getR();
   for(const t of tracks){
     const bx=r.x+t.x*r.sx,by=r.y+t.y*r.sy,bw=t.w*r.sx,bh=t.h*r.sy;
@@ -315,167 +340,184 @@ canvas.addEventListener('click',e=>{
   }
 });
 
-// ── Vision mode ───────────────────────────────────────────────────────────
-let visionMode='normal';
+// ── Zaměřovací kříž ───────────────────────────────────────────────────────
+function drawXhair(){
+  xhCtx.clearRect(0,0,xhairEl.width,xhairEl.height);
+  const w=xhairEl.width,h=xhairEl.height,cx=w/2,cy=h/2;
+  const col='rgba(0,229,160,.8)',fad='rgba(0,229,160,.18)';
+  const arm=24,gap=9;
 
-// Thermo simulace POUZE přes CSS filtry — 0 CPU overhead
-// Iron-like efekt: hue-rotate + saturate + kontrast
-const VISION_FILTERS={
-  normal: '',
-  bw:     'grayscale(1) contrast(1.6) brightness(1.1)',
-  nvg:    'grayscale(1) brightness(2.4) contrast(1.8) sepia(1) hue-rotate(82deg) saturate(6)',
-  thermo: 'saturate(5) hue-rotate(200deg) contrast(1.8) brightness(0.85)',
-  edge:   'grayscale(1) contrast(8) brightness(0.4)',
-};
+  // Kříž
+  xhCtx.strokeStyle=col; xhCtx.lineWidth=1.5; xhCtx.lineCap='round';
+  xhCtx.beginPath();
+  xhCtx.moveTo(cx-arm-gap,cy);xhCtx.lineTo(cx-gap,cy);
+  xhCtx.moveTo(cx+gap,cy);    xhCtx.lineTo(cx+arm+gap,cy);
+  xhCtx.moveTo(cx,cy-arm-gap);xhCtx.lineTo(cx,cy-gap);
+  xhCtx.moveTo(cx,cy+gap);    xhCtx.lineTo(cx,cy+arm+gap);
+  xhCtx.stroke();
 
-function setVision(m){
-  visionMode=m;
-  video.style.filter=VISION_FILTERS[m]||'';
-  // Skryj overlay canvas — nepotřebujeme ho
-  thermoOv.style.display='none';
-  document.querySelectorAll('.vbtn').forEach(b=>b.classList.toggle('on',b.dataset.m===m));
-}
+  // Dot
+  xhCtx.fillStyle=col;
+  xhCtx.beginPath();xhCtx.arc(cx,cy,2,0,Math.PI*2);xhCtx.fill();
 
-// ── Drawing loop ──────────────────────────────────────────────────────────
-let frameCount=0,lastFpsTime=0;
-// Frame rate throttle — cíl 30fps
-let lastDrawTime=0;
-const TARGET_MS=1000/30;
-
-function draw(ts){
-  if(!running)return;
-  maybeResize();
-
-  // Throttle na ~30fps
-  if(ts-lastDrawTime>=TARGET_MS){
-    lastDrawTime=ts;
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-    const r=getR();
-
-    for(const t of tracks){
-      if(t.age<1&&t.missedFrames>0)continue;
-      const bx=r.x+t.x*r.sx,by=r.y+t.y*r.sy;
-      const bw=t.w*r.sx,bh=t.h*r.sy;
-      const pct=Math.round(t.score*100);
-      const bs=boxStyle(t.id,t.isWeapon);
-      const isEnemy=enemies.has(t.id);
-      const lw=isEnemy||t.isWeapon?3.5:2.5;
-
-      // Glow — tenčí pro rychlost
-      ctx.strokeStyle=bs.glow;ctx.lineWidth=8;ctx.strokeRect(bx,by,bw,bh);
-      // Box
-      ctx.strokeStyle=bs.col;ctx.lineWidth=lw;ctx.strokeRect(bx,by,bw,bh);
-      // Corners
-      corners(bx,by,bw,bh,Math.min(bw,bh)*.18,bs.col,lw+.5);
-
-      // Label
-      pill(bs.lbl+' '+pct+'%',bx,by,isEnemy?'rgba(180,0,0,.85)':t.isWeapon?'rgba(140,110,0,.85)':'rgba(0,80,50,.85)');
-
-      // Vzdálenost — jen pro osoby (ne zbraně)
-      if(!t.isWeapon){
-        const dist=distLabel(t.h,r.sy);
-        pillB('📏 '+dist.t,bx,by+bh,'rgba(0,0,0,.7)',dist.c);
-      }
-
-      // Tap hint
-      if(myTeam&&!t.isWeapon){
-        ctx.font='8px system-ui';ctx.fillStyle='rgba(255,255,255,.25)';
-        ctx.fillText('tap',bx+bw-20,by+9);
-      }
-    }
-
-    // Kříž + kompas
-    drawCrosshair();
-    if(gyroAvail) drawCompass();
-
-    frameCount++;
-    const now=performance.now();
-    if(now-lastFpsTime>=1000){
-      fpsLbl.textContent=frameCount+' fps';
-      frameCount=0;lastFpsTime=now;
-    }
-    const vis=tracks.filter(t=>(t.age>=1||t.missedFrames===0)&&!t.isWeapon).length;
-    const weaps=tracks.filter(t=>t.isWeapon&&(t.age>=1||t.missedFrames===0)).length;
-    const parts=[];
-    if(vis) parts.push(vis+(vis===1?' osoba':vis<5?' osoby':' osob'));
-    if(weaps) parts.push(weaps+(weaps===1?' zbraň':' zbraně'));
-    countLbl.textContent=parts.join(' · ');
-    statusEl.textContent=parts.length?parts.join(' · '):'Hledám...';
+  // Range rings s popisky
+  const rings=[{r:.07,l:'10m'},{r:.13,l:'30m'},{r:.22,l:'50m'},{r:.34,l:'100m'}];
+  for(const rg of rings){
+    const rad=Math.min(w,h)*rg.r;
+    xhCtx.strokeStyle=fad; xhCtx.lineWidth=1;
+    xhCtx.setLineDash([3,7]);
+    xhCtx.beginPath();xhCtx.arc(cx,cy,rad,0,Math.PI*2);xhCtx.stroke();
+    xhCtx.setLineDash([]);
+    xhCtx.font='9px system-ui';xhCtx.fillStyle='rgba(0,229,160,.3)';
+    xhCtx.fillText(rg.l,cx+rad+3,cy-2);
   }
 
-  requestAnimationFrame(draw);
+  // Rohové závorky
+  const fw=Math.min(w,h)*.38,corner=14;
+  const fx=cx-fw/2,fy=cy-fw/2;
+  xhCtx.strokeStyle='rgba(0,229,160,.25)';xhCtx.lineWidth=1.5;
+  xhCtx.beginPath();
+  xhCtx.moveTo(fx,fy+corner);xhCtx.lineTo(fx,fy);xhCtx.lineTo(fx+corner,fy);
+  xhCtx.moveTo(fx+fw-corner,fy);xhCtx.lineTo(fx+fw,fy);xhCtx.lineTo(fx+fw,fy+corner);
+  xhCtx.moveTo(fx+fw,fy+fw-corner);xhCtx.lineTo(fx+fw,fy+fw);xhCtx.lineTo(fx+fw-corner,fy+fw);
+  xhCtx.moveTo(fx+corner,fy+fw);xhCtx.lineTo(fx,fy+fw);xhCtx.lineTo(fx,fy+fw-corner);
+  xhCtx.stroke();
 }
 
-// ── COCO detection — single fast pass ────────────────────────────────────
-let detRunning=false;
-const WEAPON_CLASSES=['knife','baseball bat','scissors'];
-const PERSON_CLASS='person';
+// ── Draw loop — 60fps čisté kreslení ──────────────────────────────────────
+let xhairDrawn=false;
+function drawLoop(){
+  if(!running)return;
+  maybeResize();
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  const r=getR();
+  const vis=tracks.filter(t=>t.age>=1||t.miss===0);
+
+  let enemyCount=0, friendCount=0;
+
+  for(const t of vis){
+    const bx=r.x+t.x*r.sx, by=r.y+t.y*r.sy;
+    const bw=t.w*r.sx,      bh=t.h*r.sy;
+    const pct=Math.round(t.score*100);
+    const bs=bStyle(t.id);
+    const isE=enemies.has(t.id);
+    if(isE)enemyCount++; else if(myTeam)friendCount++;
+
+    // Glow — jen tenký shadow
+    ctx.strokeStyle=bs.glow; ctx.lineWidth=8; ctx.strokeRect(bx,by,bw,bh);
+    // Box
+    ctx.strokeStyle=bs.col; ctx.lineWidth=isE?3:2; ctx.strokeRect(bx,by,bw,bh);
+    // Corners
+    corners(bx,by,bw,bh,bs.col,isE?3.5:2.5);
+    // Label
+    pill(bs.lbl+' '+pct+'%',bx,by,isE?'rgba(170,0,0,.85)':'rgba(0,75,45,.85)');
+    // Distance
+    const d=dist(t.h,r.sy);
+    pillB('📏 '+d.t,bx,by+bh,'rgba(0,0,0,.7)',d.c);
+    // Tap hint
+    if(myTeam){
+      ctx.font='8px system-ui';ctx.fillStyle='rgba(255,255,255,.2)';
+      ctx.fillText('tap',bx+bw-18,by+8);
+    }
+  }
+
+  // Crosshair (jednou, pak jen při resize)
+  if(!xhairDrawn||cW!==xhairEl.width){drawXhair();xhairDrawn=true;}
+
+  // Stats
+  drawCount++; totalFrames++;
+  hudFrames.textContent=totalFrames;
+  updateStats();
+
+  // HUD count
+  if(vis.length===0){
+    hudCount.textContent='Žádná detekce';
+    hudCount.className='hud-count';
+  }else if(myTeam&&enemyCount>0){
+    hudCount.textContent=enemyCount+(enemyCount===1?' NEPŘÍTEL':' NEPŘÁTELÉ');
+    hudCount.className='hud-count enemy';
+  }else{
+    hudCount.textContent=vis.length+(vis.length===1?' osoba':vis.length<5?' osoby':' osob');
+    hudCount.className='hud-count';
+  }
+
+  requestAnimationFrame(drawLoop);
+}
+
+// ── Detection loop — asynchronní, neblokuje kreslení ─────────────────────
 const detBuf=document.createElement('canvas');
 const detCtx=detBuf.getContext('2d');
+let detBusy=false;
 
-function looksLikeWeapon(bbox){
-  const[,,w,h]=bbox;
-  const ratio=Math.max(w,h)/Math.min(w,h);
-  const rel=(w*h)/(detBuf.width*detBuf.height);
-  return ratio>5&&rel<0.06&&rel>0.0005;
-}
-
-// Adaptivní velikost vstupu — závisí na zoomu
-function getDetSize(){
+function getInputSize(){
+  // A21 optimalizace — malý vstup = rychlá inference
   const z=parseFloat(document.querySelector('.zb.on')?.dataset.z||1);
-  return z>=3?640:360; // zoom 3x+ = větší vstup pro dálku
+  if(z>=4) return 320; // zoom = menší lidi, větší vstup
+  return 224;          // blízko = malý vstup, rychlé
 }
 
-async function runDetection(){
-  if(!running||!cocoModel||video.readyState<2||detRunning)return;
-  detRunning=true;
-  try{
-    const W=getDetSize();
-    const H=Math.round(W*(video.videoHeight/video.videoWidth));
-    detBuf.width=W; detBuf.height=H;
-    // Kontrast boost přes CSS filter — hardware accelerated
-    detCtx.filter='contrast(1.4) brightness(1.1)';
-    detCtx.drawImage(video,0,0,W,H);
-    detCtx.filter='none';
+async function detLoop(){
+  while(running){
+    if(!detBusy && cocoModel && video.readyState>=2){
+      detBusy=true;
+      try{
+        const W=getInputSize();
+        const H=Math.round(W*(video.videoHeight/video.videoWidth));
+        detBuf.width=W; detBuf.height=H;
+        // Kontrast boost — GPU accelerated (CSS filter na canvas drawImage nefunguje,
+        // ale nastavíme globalCompositeOperation pro rychlý kontrast)
+        detCtx.drawImage(video,0,0,W,H);
 
-    const raw=await cocoModel.detect(detBuf,25,0.18);
-    const sx=video.videoWidth/W, sy=video.videoHeight/H;
-    const dets=[];
-    for(const o of raw){
-      const isP=o.class===PERSON_CLASS;
-      const isW=WEAPON_CLASSES.includes(o.class)||looksLikeWeapon(o.bbox);
-      if(!isP&&!isW)continue;
-      dets.push({bbox:[o.bbox[0]*sx,o.bbox[1]*sy,o.bbox[2]*sx,o.bbox[3]*sy],score:o.score,isWeapon:!isP});
+        const raw=await cocoModel.detect(detBuf,15,0.20);
+        const sx=video.videoWidth/W, sy=video.videoHeight/H;
+        const dets=raw
+          .filter(o=>o.class==='person')
+          .map(o=>({bbox:[o.bbox[0]*sx,o.bbox[1]*sy,o.bbox[2]*sx,o.bbox[3]*sy],score:o.score}));
+        updateTracks(dets);
+        detCount++; totalDets++;
+        hudSize.textContent=W+'px';
+      }catch(e){}
+      detBusy=false;
     }
-    updateTracks(dets);
-  }catch(e){}
-  detRunning=false;
-  // Naplánuj další detekci hned jak skončila předchozí + malá pauza
-  if(running) setTimeout(runDetection,50);
+    // Krátká pauza — nechá browser dýchat
+    await new Promise(r=>setTimeout(r,30));
+  }
 }
 
-// ── Load model ────────────────────────────────────────────────────────────
+// ── Model ──────────────────────────────────────────────────────────────────
 async function loadModels(){
   try{
-    ltxt.textContent='Načítám detektor...';pfill.style.width='20%';
+    document.getElementById('ltxt').textContent='Načítám detektor...';
+    document.getElementById('pfill').style.width='50%';
+    // lite_mobilenet_v2 = nejrychlejší model pro mobilní zařízení
     cocoModel=await cocoSsd.load({base:'lite_mobilenet_v2'});
-    pfill.style.width='100%';
-    setTimeout(()=>{loader.style.display='none';statusEl.textContent='Připraveno ✓';startBtn.style.display='block';},300);
-  }catch(e){loader.style.display='none';statusEl.textContent='⚠️ '+e.message;startBtn.style.display='block';}
+    document.getElementById('pfill').style.width='100%';
+    setTimeout(()=>{
+      document.getElementById('loader').style.display='none';
+      statusEl.textContent='Připraveno ✓';
+      startBtn.style.display='block';
+    },200);
+  }catch(e){
+    document.getElementById('loader').style.display='none';
+    statusEl.textContent='⚠️ '+e.message;
+    startBtn.style.display='block';
+  }
 }
 
-// ── Start camera ──────────────────────────────────────────────────────────
-
+// ── Kamera ────────────────────────────────────────────────────────────────
 async function startCamera(){
-  if(starting)return;starting=true;
+  if(starting)return; starting=true;
   running=false;
-  await new Promise(r=>setTimeout(r,80));
+  await new Promise(r=>setTimeout(r,60));
   if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}
   video.srcObject=null;
-  startBtn.style.display='none';statusEl.textContent='Spouštím...';
+  startBtn.style.display='none';
+  statusEl.textContent='Spouštím...';
   try{
+    // A21: nižší rozlišení = plynulejší video stream
     stream=await navigator.mediaDevices.getUserMedia({
-      video:{facingMode,width:{ideal:1280},height:{ideal:720}},audio:false
+      video:{facingMode,width:{ideal:960},height:{ideal:540}},audio:false
     });
     video.srcObject=stream;
     await new Promise((res,rej)=>{
@@ -484,45 +526,42 @@ async function startCamera(){
       video.onerror=e=>{clearTimeout(to);rej(e);};
     });
     try{await video.play();}catch(e){await new Promise(r=>setTimeout(r,200));await video.play();}
+
     controls.style.display='flex';
     zoomBar.style.display='flex';
     teamBar.style.display='flex';
     hudEl.style.display='flex';
     visionBar.style.display='flex';
-    crossEl.style.display='block';
-    crossEl.style.cssText='position:absolute;inset:0;z-index:4;pointer-events:none;width:100%;height:100%;';
-    compassEl.style.display='block';
-    compassEl.style.cssText='position:absolute;bottom:130px;right:12px;z-index:25;width:60px;height:60px;';
+    xhairEl.style.display='block';
+
     statusEl.textContent='Hledám...';
-    tracks=[];running=true;starting=false;
-    requestAnimationFrame(draw);
-    setTimeout(runDetection, 200); // samo-plánující smyčka
+    tracks=[]; totalFrames=0; totalDets=0;
+    running=true; starting=false;
+
+    requestAnimationFrame(drawLoop); // 60fps kreslení
+    detLoop();                        // async detekce
+
   }catch(e){
-    starting=false;running=false;
-    statusEl.textContent='⚠️ Kamera selhala';startBtn.style.display='block';
+    starting=false; running=false;
+    statusEl.textContent='⚠️ Kamera selhala';
+    startBtn.style.display='block';
   }
 }
 
-// ── Team buttons ──────────────────────────────────────────────────────────
-function selectTeam(t){
-  if(myTeam===t){
-    myTeam=null;enemies.clear();
-    btnRed.classList.remove('sel');btnBlue.classList.remove('sel');
-    teamLabelEl.style.display='none';
-  }else{
-    myTeam=t;enemies.clear();
-    btnRed.classList.toggle('sel',t==='red');
-    btnBlue.classList.toggle('sel',t==='blue');
-    teamLabelEl.style.display='block';
-    teamLabelEl.className=t;
-    teamLabelEl.textContent=t==='red'?'🔴 Jsi ČERVENÝ — tap na osobu = nepřítel':'🔵 Jsi MODRÝ — tap na osobu = nepřítel';
-  }
-}
-btnRed.addEventListener('click',()=>selectTeam('red'));
-btnBlue.addEventListener('click',()=>selectTeam('blue'));
-
-// ── Vision modes ──────────────────────────────────────────────────────────
-document.querySelectorAll('.vbtn').forEach(b=>b.addEventListener('click',()=>setVision(b.dataset.m)));
+// ── Vision modes — pouze CSS, 0 CPU ──────────────────────────────────────
+const VFILTERS={
+  normal:'',
+  bw:    'grayscale(1) contrast(1.6) brightness(1.1)',
+  nvg:   'grayscale(1) brightness(2.4) contrast(1.8) sepia(1) hue-rotate(82deg) saturate(6)',
+  thermo:'saturate(6) hue-rotate(200deg) contrast(2) brightness(.85)',
+};
+document.querySelectorAll('.vbtn').forEach(b=>{
+  b.addEventListener('click',()=>{
+    document.querySelectorAll('.vbtn').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+    video.style.filter=VFILTERS[b.dataset.m]||'';
+  });
+});
 
 // ── Zoom ──────────────────────────────────────────────────────────────────
 document.querySelectorAll('.zb').forEach(b=>{
@@ -533,201 +572,65 @@ document.querySelectorAll('.zb').forEach(b=>{
     const tr=stream.getVideoTracks()[0];if(!tr)return;
     try{
       const c=tr.getCapabilities?tr.getCapabilities():{};
-      if(c.zoom){const mn=c.zoom.min||1,mx=c.zoom.max||10;await tr.applyConstraints({advanced:[{zoom:mn+(z-1)*(mx-mn)/9}]});}
-      else throw '';
+      if(c.zoom){
+        const mn=c.zoom.min||1,mx=c.zoom.max||10;
+        await tr.applyConstraints({advanced:[{zoom:mn+(z-1)*(mx-mn)/9}]});
+      }else throw '';
     }catch(e){video.style.transform=`scale(${z})`;video.style.transformOrigin='center';}
   });
 });
 
-// ── Zaměřovací kříž + kompas ──────────────────────────────────────────────
-const crossEl  = document.getElementById('crosshair');
-const crossCtx = crossEl.getContext('2d');
-const compassEl= document.getElementById('compass');
-const compCtx  = compassEl.getContext('2d');
-
-// Gyro/orientace — kde se kamera dívá
-let heading=0, pitch=0, roll=0;
-let gyroAvail=false;
-
-if(window.DeviceOrientationEvent){
-  const req=DeviceOrientationEvent.requestPermission;
-  const handler=e=>{
-    if(e.alpha!=null){ heading=e.alpha||0; pitch=e.beta||0; roll=e.gamma||0; gyroAvail=true; }
-  };
-  if(typeof req==='function'){
-    // iOS — požádáme o povolení při prvním kliknutí
-    document.addEventListener('click',()=>{
-      req().then(p=>{ if(p==='granted') window.addEventListener('deviceorientation',handler); }).catch(()=>{});
-    },{once:true});
+// ── Team ──────────────────────────────────────────────────────────────────
+function selTeam(t){
+  if(myTeam===t){
+    myTeam=null;enemies.clear();
+    document.getElementById('btnRed').classList.remove('sel');
+    document.getElementById('btnBlue').classList.remove('sel');
   }else{
-    window.addEventListener('deviceorientation',handler);
+    myTeam=t;enemies.clear();
+    document.getElementById('btnRed').classList.toggle('sel',t==='red');
+    document.getElementById('btnBlue').classList.toggle('sel',t==='blue');
   }
 }
-
-// Pohybový vektor — sleduje pohyb kříže (kde se kamera pohybuje)
-let lastHeading=0, lastPitch=0;
-let motionVecX=0, motionVecY=0;
-
-function drawCrosshair(){
-  const w=crossEl.offsetWidth, h=crossEl.offsetHeight;
-  if(!w||!h)return;
-  crossEl.width=w; crossEl.height=h;
-  crossCtx.clearRect(0,0,w,h);
-
-  const cx=w/2, cy=h/2;
-  const col='rgba(0,229,160,0.85)';
-  const colFade='rgba(0,229,160,0.25)';
-
-  // Pohybový vektor (smoothed)
-  const dh=((heading-lastHeading+540)%360-180)*0.3;
-  const dp=(pitch-lastPitch)*0.3;
-  motionVecX=motionVecX*0.85+dh*2;
-  motionVecY=motionVecY*0.85+dp*2;
-  lastHeading=heading; lastPitch=pitch;
-
-  // ── Hlavní kříž ──────────────────────────────────────────────────────
-  const arm=28, gap=10, lw=1.5;
-  crossCtx.strokeStyle=col; crossCtx.lineWidth=lw; crossCtx.lineCap='round';
-
-  // Horizontální čáry
-  crossCtx.beginPath();
-  crossCtx.moveTo(cx-arm-gap,cy); crossCtx.lineTo(cx-gap,cy);
-  crossCtx.moveTo(cx+gap,cy);     crossCtx.lineTo(cx+arm+gap,cy);
-  // Vertikální čáry
-  crossCtx.moveTo(cx,cy-arm-gap); crossCtx.lineTo(cx,cy-gap);
-  crossCtx.moveTo(cx,cy+gap);     crossCtx.lineTo(cx,cy+arm+gap);
-  crossCtx.stroke();
-
-  // Středový dot
-  crossCtx.fillStyle=col;
-  crossCtx.beginPath(); crossCtx.arc(cx,cy,2.5,0,Math.PI*2); crossCtx.fill();
-
-  // Vnější kruh
-  crossCtx.strokeStyle=colFade; crossCtx.lineWidth=1;
-  crossCtx.beginPath(); crossCtx.arc(cx,cy,arm+gap+8,0,Math.PI*2); crossCtx.stroke();
-
-  // Rohy rámečku
-  const fw=Math.min(w,h)*0.35, corner=16;
-  const fx=cx-fw/2, fy=cy-fw/2;
-  crossCtx.strokeStyle='rgba(0,229,160,0.3)'; crossCtx.lineWidth=1.5;
-  crossCtx.beginPath();
-  crossCtx.moveTo(fx,fy+corner); crossCtx.lineTo(fx,fy); crossCtx.lineTo(fx+corner,fy);
-  crossCtx.moveTo(fx+fw-corner,fy); crossCtx.lineTo(fx+fw,fy); crossCtx.lineTo(fx+fw,fy+corner);
-  crossCtx.moveTo(fx+fw,fy+fw-corner); crossCtx.lineTo(fx+fw,fy+fw); crossCtx.lineTo(fx+fw-corner,fy+fw);
-  crossCtx.moveTo(fx+corner,fy+fw); crossCtx.lineTo(fx,fy+fw); crossCtx.lineTo(fx,fy+fw-corner);
-  crossCtx.stroke();
-
-  // Pohybová šipka (kam se kamera pohybuje)
-  const mv=Math.hypot(motionVecX,motionVecY);
-  if(mv>1.5){
-    const angle=Math.atan2(motionVecY,motionVecX);
-    const len=Math.min(mv*4,50);
-    crossCtx.strokeStyle='rgba(255,208,60,0.7)'; crossCtx.lineWidth=2;
-    crossCtx.beginPath();
-    crossCtx.moveTo(cx,cy);
-    crossCtx.lineTo(cx+Math.cos(angle)*len,cy+Math.sin(angle)*len);
-    crossCtx.stroke();
-    // Šipka
-    crossCtx.fillStyle='rgba(255,208,60,0.7)';
-    const tx=cx+Math.cos(angle)*len, ty=cy+Math.sin(angle)*len;
-    crossCtx.beginPath();
-    crossCtx.moveTo(tx+Math.cos(angle)*6,ty+Math.sin(angle)*6);
-    crossCtx.lineTo(tx+Math.cos(angle+2.5)*5,ty+Math.sin(angle+2.5)*5);
-    crossCtx.lineTo(tx+Math.cos(angle-2.5)*5,ty+Math.sin(angle-2.5)*5);
-    crossCtx.fill();
-  }
-
-  // Vzdálenostní prstence (range rings) — odhad vzdálenosti
-  const rings=[{d:'~10m',r:0.08},{d:'~30m',r:0.14},{d:'~50m',r:0.22},{d:'~100m',r:0.35}];
-  for(const ring of rings){
-    const rad=Math.min(w,h)*ring.r;
-    crossCtx.strokeStyle='rgba(0,229,160,0.08)'; crossCtx.lineWidth=1;
-    crossCtx.setLineDash([4,8]);
-    crossCtx.beginPath(); crossCtx.arc(cx,cy,rad,0,Math.PI*2); crossCtx.stroke();
-    crossCtx.setLineDash([]);
-    crossCtx.font='9px system-ui'; crossCtx.fillStyle='rgba(0,229,160,0.35)';
-    crossCtx.fillText(ring.d,cx+rad+3,cy-3);
-  }
-}
-
-// ── Kompas ──────────────────────────────────────────────────────────────
-function drawCompass(){
-  const s=60;
-  compassEl.width=s; compassEl.height=s;
-  compCtx.clearRect(0,0,s,s);
-  const cx=s/2,cy=s/2,r=s/2-3;
-
-  // Pozadí
-  compCtx.fillStyle='rgba(0,0,0,0.6)';
-  compCtx.beginPath(); compCtx.arc(cx,cy,r,0,Math.PI*2); compCtx.fill();
-  compCtx.strokeStyle='rgba(0,229,160,0.3)'; compCtx.lineWidth=1;
-  compCtx.beginPath(); compCtx.arc(cx,cy,r,0,Math.PI*2); compCtx.stroke();
-
-  // Světové strany
-  const dirs=[{l:'S',a:0,c:'#ff4444'},{l:'V',a:90},{l:'J',a:180},{l:'Z',a:270}];
-  for(const d of dirs){
-    const rad=(d.a-heading)*Math.PI/180;
-    const tx=cx+Math.sin(rad)*(r-8), ty=cy-Math.cos(rad)*(r-8);
-    compCtx.font=`bold ${d.l==='S'?9:8}px system-ui`;
-    compCtx.fillStyle=d.c||'rgba(255,255,255,0.5)';
-    compCtx.textAlign='center'; compCtx.textBaseline='middle';
-    compCtx.fillText(d.l,tx,ty);
-  }
-
-  // Jehla
-  compCtx.save(); compCtx.translate(cx,cy);
-  // Sever (červená)
-  compCtx.fillStyle='#ff4444';
-  compCtx.beginPath();
-  compCtx.moveTo(0,-r+12); compCtx.lineTo(-4,0); compCtx.lineTo(4,0);
-  compCtx.fill();
-  // Jih (bílá)
-  compCtx.fillStyle='rgba(255,255,255,0.4)';
-  compCtx.beginPath();
-  compCtx.moveTo(0,r-12); compCtx.lineTo(-4,0); compCtx.lineTo(4,0);
-  compCtx.fill();
-  compCtx.restore();
-
-  // Heading číslo
-  compCtx.font='bold 9px system-ui'; compCtx.fillStyle='#00e5a0';
-  compCtx.textAlign='center'; compCtx.textBaseline='middle';
-  compCtx.fillText(Math.round(heading)+'°',cx,cy);
-}
+document.getElementById('btnRed').addEventListener('click',()=>selTeam('red'));
+document.getElementById('btnBlue').addEventListener('click',()=>selTeam('blue'));
 
 // ── Foto ──────────────────────────────────────────────────────────────────
 photoBtn.addEventListener('click',()=>{
   flashEl.style.transition='none';flashEl.style.opacity='.8';
   setTimeout(()=>{flashEl.style.transition='opacity .3s';flashEl.style.opacity='0';},80);
-  const s=document.createElement('canvas');s.width=video.videoWidth;s.height=video.videoHeight;
-  const sc=s.getContext('2d');sc.drawImage(video,0,0);sc.drawImage(canvas,0,0,s.width,s.height);
+  const s=document.createElement('canvas');
+  s.width=video.videoWidth;s.height=video.videoHeight;
+  const sc=s.getContext('2d');
+  sc.drawImage(video,0,0);
+  sc.drawImage(canvas,0,0,s.width,s.height);
   const a=document.createElement('a');
-  a.download='airsoft-'+new Date().toISOString().slice(0,16).replace(/[:.T]/g,'-')+'.jpg';
+  a.download='airsoft-'+Date.now()+'.jpg';
   a.href=s.toDataURL('image/jpeg',.9);a.click();
 });
 
-// ── Camera toggle ─────────────────────────────────────────────────────────
 camToggle.addEventListener('click',()=>{
   facingMode=facingMode==='environment'?'user':'environment';
   tracks=[];enemies.clear();startCamera();
 });
 
-// ── Net + misc ────────────────────────────────────────────────────────────
+// ── Net ───────────────────────────────────────────────────────────────────
 const netEl=document.getElementById('net');
-function updateNet(){
-  if(navigator.onLine){netEl.className='on';netEl.textContent='✓ Online';setTimeout(()=>{netEl.style.display='none';},2500);}
+function updNet(){
+  if(navigator.onLine){netEl.className='on';netEl.textContent='✓ Online';setTimeout(()=>{netEl.style.display='none';},2000);}
   else{netEl.className='off';netEl.textContent='⚠️ Offline';}
 }
-window.addEventListener('online',updateNet);window.addEventListener('offline',updateNet);updateNet();
-window.addEventListener('resize',()=>{canvasW=0;});
+window.addEventListener('online',updNet);window.addEventListener('offline',updNet);updNet();
+window.addEventListener('resize',()=>{cW=0;xhairDrawn=false;});
 startBtn.addEventListener('click',startCamera);
 
 // ── Splash ────────────────────────────────────────────────────────────────
-requestAnimationFrame(()=>{document.getElementById('sp-fill').style.width='100%';});
+requestAnimationFrame(()=>{document.getElementById('spFill').style.width='100%';});
 setTimeout(()=>{
   const sp=document.getElementById('splash');
   sp.classList.add('fade');
   setTimeout(()=>{sp.style.display='none';loadModels();},550);
-},5000);
+},4000);
 </script>
 </body>
 </html>
