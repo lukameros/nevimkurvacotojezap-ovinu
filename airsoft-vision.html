@@ -182,6 +182,11 @@ body{background:#000;color:#fff;font-family:system-ui,sans-serif;height:100dvh;d
 </div>
 
 <script>
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('./sw.js').catch(()=>{});
+}
+</script>
+<script>
 // Ověření přístupu — stejná metoda jako index.html
 (function(){
   // Transformační konstanty (musí odpovídat index.html)
@@ -231,7 +236,7 @@ const hudSize  =document.getElementById('hudSize');
 
 // ── State ─────────────────────────────────────────────────────────────────
 let stream=null, running=false, starting=false, facingMode='environment';
-let cocoModel=null, faceModel=null, myTeam=null;
+let cocoModel=null, myTeam=null;
 const enemies=new Set();
 
 // ── Výkonnostní statistiky ────────────────────────────────────────────────
@@ -518,21 +523,7 @@ function drawLoop(){
   requestAnimationFrame(drawLoop);
 }
 
-// ── NMS — odstraní duplicitní detekce ────────────────────────────────────
-function nms(dets, thresh){
-  dets.sort((a,b)=>b.score-a.score);
-  const keep=[], sup=new Set();
-  for(let i=0;i<dets.length;i++){
-    if(sup.has(i)) continue;
-    keep.push(dets[i]);
-    for(let j=i+1;j<dets.length;j++){
-      if(!sup.has(j) && iou(dets[i].bbox,dets[j].bbox)>thresh) sup.add(j);
-    }
-  }
-  return keep;
-}
-
-// ── Detection loop — ROI kolem křížku → rychlejší + přesnější ────────────
+// ── Detection loop ────────────────────────────────────────────────────────
 const detBuf =document.createElement('canvas');
 const detCtx =detBuf.getContext('2d');
 const roiBuf =document.createElement('canvas');
@@ -541,9 +532,11 @@ let detBusy=false, detCycle=0;
 
 function getInputSize(){
   const z=parseFloat(document.querySelector('.zb.on')?.dataset.z||1);
-  if(z>=4) return 352;
-  if(z>=2) return 256;
-  return 192;
+  // Větší vstup = lepší detekce na dálku, ale pomalejší
+  // Na 100m+ potřebujeme aspoň 320px
+  if(z>=4) return 416; // iPhone 11 Pro 4× zoom = ~100m+
+  if(z>=2) return 320;
+  return 224; // blízko = rychlé
 }
 
 async function detLoop(){
@@ -556,24 +549,18 @@ async function detLoop(){
         const allDets=[];
         const isNight=visionMode==='nvg'||visionMode==='thermo'||visionMode==='bw';
 
-        // ── ROI 60% středu — COCO tělo ───────────────────────────────
+        // ── ROI 60% středu — každý cyklus ────────────────────────────
         const rf=0.60;
         const roiX=video.videoWidth*(1-rf)/2;
         const roiY=video.videoHeight*(1-rf)/2;
         const roiW=video.videoWidth*rf;
         const roiH=video.videoHeight*rf;
         roiBuf.width=W; roiBuf.height=Math.round(W*(roiH/roiW));
-
-        // Preprocessing — kontrast boost pro termo/NVG
-        if(isNight){
-          roiCtx.filter='contrast(2.2) brightness(1.3) grayscale(0.8)';
-        }
+        if(isNight) roiCtx.filter='contrast(2) brightness(1.3)';
         roiCtx.drawImage(video,roiX,roiY,roiW,roiH,0,0,roiBuf.width,roiBuf.height);
         roiCtx.filter='none';
-
-        // Nižší threshold v nočním módu
-        const thresh1=isNight?0.18:0.28;
-        const rawRoi=await cocoModel.detect(roiBuf,8,thresh1);
+        const t1=isNight?0.18:0.28;
+        const rawRoi=await cocoModel.detect(roiBuf,6,t1);
         const sxR=roiW/roiBuf.width, syR=roiH/roiBuf.height;
         for(const o of rawRoi){
           if(o.class!=='person') continue;
@@ -586,13 +573,11 @@ async function detLoop(){
         if(detCycle%4===0){
           const H=Math.round(W*(video.videoHeight/video.videoWidth));
           detBuf.width=W; detBuf.height=H;
-          if(isNight){
-            detCtx.filter='contrast(2.2) brightness(1.3) grayscale(0.8)';
-          }
+          if(isNight) detCtx.filter='contrast(2) brightness(1.3)';
           detCtx.drawImage(video,0,0,W,H);
           detCtx.filter='none';
-          const thresh2=isNight?0.20:0.30;
-          const rawFull=await cocoModel.detect(detBuf,8,thresh2);
+          const t2=isNight?0.20:0.30;
+          const rawFull=await cocoModel.detect(detBuf,6,t2);
           const sx=video.videoWidth/W, sy=video.videoHeight/H;
           for(const o of rawFull){
             if(o.class!=='person') continue;
@@ -603,26 +588,28 @@ async function detLoop(){
         }
 
         // ── Hlava (face-api) — každý 3. cyklus ───────────────────────
-        if(detCycle%3===0 && faceapi){
+        if(detCycle%3===0){
           try{
-            const fScore=isNight?0.18:0.25;
-            const fOpts=new faceapi.TinyFaceDetectorOptions({inputSize:224,scoreThreshold:fScore});
+            const fOpts=new faceapi.TinyFaceDetectorOptions({inputSize:224,scoreThreshold:isNight?0.18:0.25});
             const faces=await faceapi.detectAllFaces(video,fOpts);
             for(const f of faces){
-              const {x,y,width:w,height:h}=f.box;
-              const bodyH=h*6.5, bodyW=bodyH*0.4;
-              allDets.push({bbox:[x+w/2-bodyW/2,y,bodyW,bodyH],score:f.score*0.85});
+              const {x,y,width:fw,height:fh}=f.box;
+              const bH=fh*6.5, bW=bH*0.4;
+              allDets.push({bbox:[x+fw/2-bW/2,y,bW,bH],score:f.score*0.8});
             }
           }catch(e){}
         }
 
-        // ── Termální detekce — jen v thermo módu ─────────────────────
+        // ── Termální blobová detekce — jen v thermo módu ─────────────
         if(visionMode==='thermo'){
-          const thermalDets=detectThermalBlobs();
-          for(const td of thermalDets) allDets.push(td);
+          try{
+            const tBlobs=detectThermalBlobs();
+            for(const tb of tBlobs) allDets.push(tb);
+          }catch(e){}
         }
 
-        updateTracks(nms(allDets, 0.38));
+        // Agresivní NMS = jeden box na osobu
+        updateTracks(nms(allDets, 0.35));
         detCount++; totalDets++;
         hudSize.textContent=W+'px';
       }catch(e){}
