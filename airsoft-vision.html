@@ -252,6 +252,13 @@ function updateTracks(dets){
       if(v>bv){bv=v;best=t;}
     }
     if(best){
+      // Velocity = pohyb středu (EMA smoothed)
+      const newCx=d.bbox[0]+d.bbox[2]/2, newCy=d.bbox[1]+d.bbox[3]/2;
+      const oldCx=best.x+best.w/2,       oldCy=best.y+best.h/2;
+      const rawVx=newCx-oldCx, rawVy=newCy-oldCy;
+      // EMA velocity smoothing — redukuje šum
+      best.vx=(best.vx||0)*.55+rawVx*.45;
+      best.vy=(best.vy||0)*.55+rawVy*.45;
       best.x+=(d.bbox[0]-best.x)*SMOOTH;
       best.y+=(d.bbox[1]-best.y)*SMOOTH;
       best.w+=(d.bbox[2]-best.w)*SMOOTH;
@@ -260,7 +267,8 @@ function updateTracks(dets){
       best.miss=0; best.age++;
       matched.add(best.id);
     }else{
-      tracks.push({id:nextId++,x:d.bbox[0],y:d.bbox[1],w:d.bbox[2],h:d.bbox[3],score:d.score,age:0,miss:0});
+      tracks.push({id:nextId++,x:d.bbox[0],y:d.bbox[1],w:d.bbox[2],h:d.bbox[3],
+        score:d.score,age:0,miss:0,vx:0,vy:0});
     }
   }
   for(const t of tracks) if(!matched.has(t.id)) t.miss++;
@@ -415,6 +423,48 @@ function drawLoop(){
     // Distance
     const d=dist(t.h,r.sy);
     pillB('📏 '+d.t,bx,by+bh,'rgba(0,0,0,.7)',d.c);
+
+    // ── Predikce pohybu ──────────────────────────────────────────────
+    const vx=t.vx||0, vy=t.vy||0;
+    const speed=Math.hypot(vx,vy);
+    if(t.age>=3 && speed>1.2){ // pohybuje se
+      // Predikovaná pozice středu (3-5 snímků dopředu)
+      const lead=Math.min(5, 3+speed*0.3);
+      const pcx=bx+bw/2 + vx*r.sx*lead;
+      const pcy=by+bh/2 + vy*r.sy*lead;
+
+      // Šipka od středu k predikci
+      ctx.strokeStyle='rgba(255,220,0,0.7)';
+      ctx.lineWidth=2;
+      ctx.setLineDash([4,4]);
+      ctx.beginPath();
+      ctx.moveTo(bx+bw/2, by+bh/2);
+      ctx.lineTo(pcx, pcy);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Zaměřovací kruh na predikované místo
+      const aimR=Math.max(10, bw*0.18);
+      ctx.strokeStyle='rgba(255,220,0,0.9)';
+      ctx.lineWidth=2.5;
+      ctx.beginPath();
+      ctx.arc(pcx, pcy, aimR, 0, Math.PI*2);
+      ctx.stroke();
+      // Kříž uvnitř
+      ctx.strokeStyle='rgba(255,220,0,0.9)';
+      ctx.lineWidth=1.5;
+      ctx.beginPath();
+      ctx.moveTo(pcx-aimR*.5,pcy); ctx.lineTo(pcx+aimR*.5,pcy);
+      ctx.moveTo(pcx,pcy-aimR*.5); ctx.lineTo(pcx,pcy+aimR*.5);
+      ctx.stroke();
+
+      // Rychlost pohybu
+      const spd=Math.round(speed*10)/10;
+      ctx.font='bold 11px system-ui,sans-serif';
+      ctx.fillStyle='rgba(255,220,0,.85)';
+      ctx.fillText('↗ '+spd+'px/f', pcx+aimR+4, pcy-2);
+    }
+
     // Tap hint
     if(myTeam){
       ctx.font='8px system-ui';ctx.fillStyle='rgba(255,255,255,.2)';
@@ -469,7 +519,7 @@ async function detLoop(){
         // ale nastavíme globalCompositeOperation pro rychlý kontrast)
         detCtx.drawImage(video,0,0,W,H);
 
-        const raw=await cocoModel.detect(detBuf,15,0.20);
+        const raw=await cocoModel.detect(detBuf,12,0.18);
         const sx=video.videoWidth/W, sy=video.videoHeight/H;
         const dets=raw
           .filter(o=>o.class==='person')
