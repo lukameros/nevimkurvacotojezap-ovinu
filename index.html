@@ -840,32 +840,72 @@ async function loadModels(){
 }
 
 // ── Kamera ────────────────────────────────────────────────────────────────
+let cameraStarting = false; // zabrání vícenásobnému spuštění
+
 async function startCamera(){
-  if(stream) stream.getTracks().forEach(t=>t.stop());
-  running=false; startBtn.style.display='none';
-  statusEl.textContent='Spouštím kameru...';
-  try{
-    // Nižší rozlišení = rychlejší zpracování na mobilu
-    stream=await navigator.mediaDevices.getUserMedia({
-      video:{facingMode,width:{ideal:960},height:{ideal:540}},audio:false
+  if (cameraStarting) return; // zabrání double-klik
+  cameraStarting = true;
+
+  // Zastav všechny běžící smyčky
+  running = false;
+  await new Promise(r => setTimeout(r, 80)); // počkej než smyčky doběhnou
+
+  // Uvolni předchozí stream
+  if (stream) {
+    stream.getTracks().forEach(t => t.stop());
+    stream = null;
+  }
+  video.srcObject = null;
+
+  startBtn.style.display = 'none';
+  statusEl.textContent = 'Spouštím kameru...';
+
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode, width:{ ideal:960 }, height:{ ideal:540 } },
+      audio: false
     });
-    video.srcObject=stream;
-    await new Promise(r=>{video.onloadedmetadata=r;});
-    video.play();
-    camToggle.style.display='flex'; photoBtn.style.display='flex';
-    zoomBar.style.display='flex'; nightBtn.style.display='flex';
-    legend.style.display='flex'; fpsLabel.style.display='block';
-    document.getElementById('sensitPanel').style.display='flex';
-    statusEl.textContent='Hledám...';
-    ageHistory=[]; cachedAnalysis=[]; running=true;
-    drawLoop();      // 60fps — jen kreslení
-    faceLoop();      // každých 150ms — detekce obličeje
-    cocoLoop();      // každých 350ms — COCO objekty
-    handsLoop();     // každých 120ms — ruce
-    analysisLoop();  // každých 900ms — věk/emoce/pohlaví
-  }catch(e){
-    statusEl.textContent='Přístup ke kameře zamítnut';
-    startBtn.style.display='block';
+
+    video.srcObject = stream;
+
+    // Bezpečné čekání na metadata s timeoutem
+    await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('Timeout')), 8000);
+      video.onloadedmetadata = () => { clearTimeout(timeout); resolve(); };
+      video.onerror = (e) => { clearTimeout(timeout); reject(e); };
+    });
+
+    // Explicitní play() s retry
+    try { await video.play(); } catch(e) {
+      await new Promise(r => setTimeout(r, 200));
+      await video.play();
+    }
+
+    camToggle.style.display = 'flex';
+    photoBtn.style.display  = 'flex';
+    zoomBar.style.display   = 'flex';
+    nightBtn.style.display  = 'flex';
+    legend.style.display    = 'flex';
+    fpsLabel.style.display  = 'block';
+    document.getElementById('sensitPanel').style.display = 'flex';
+    statusEl.textContent = 'Hledám...';
+    ageHistory = []; cachedAnalysis = [];
+    running = true;
+    cameraStarting = false;
+
+    // Spusť smyčky — každou s malým zpožděním aby se nepřetížil CPU najednou
+    drawLoop();
+    setTimeout(() => { if(running) faceLoop(); },  100);
+    setTimeout(() => { if(running) cocoLoop(); },  200);
+    setTimeout(() => { if(running) handsLoop(); }, 300);
+    setTimeout(() => { if(running) analysisLoop(); }, 400);
+
+  } catch(e) {
+    cameraStarting = false;
+    running = false;
+    statusEl.textContent = '⚠️ Kamera selhala: ' + e.message;
+    startBtn.style.display = 'block';
+    console.error('Camera error:', e);
   }
 }
 
@@ -895,7 +935,7 @@ function drawLoop(){
 // ── 2. DETEKCE OBLIČEJE — každých 150ms ──────────────────────────────────
 let faceRunning=false;
 async function faceLoop(){
-  if(!running) return;
+  if(!running){ faceRunning=false; return; }
   if(!faceRunning && video.readyState>=2){
     faceRunning=true;
     try{
@@ -904,7 +944,7 @@ async function faceLoop(){
     }catch(e){ fastFaces=[]; }
     faceRunning=false;
   }
-  setTimeout(()=>{if(running)faceLoop();},150);
+  setTimeout(()=>{ if(running) faceLoop(); },150);
 }
 
 // ── 3. COCO-SSD — každých 350ms ──────────────────────────────────────────
@@ -955,13 +995,13 @@ async function cocoLoop(){
 // ── 4. RUCE — každých 120ms ───────────────────────────────────────────────
 let handsRunning=false;
 async function handsLoop(){
-  if(!running) return;
+  if(!running){ handsRunning=false; return; }
   if(!handsRunning && mpHands && video.readyState>=2){
     handsRunning=true;
     try{ await mpHands.send({image:video}); }catch(e){}
     handsRunning=false;
   }
-  setTimeout(()=>{if(running)handsLoop();},120);
+  setTimeout(()=>{ if(running) handsLoop(); },120);
 }
 
 // ── 5. ANALÝZA — věk/emoce/pohlaví každých 900ms ─────────────────────────
@@ -979,7 +1019,7 @@ async function analysisLoop(){
       }
     }catch(e){}
   }
-  setTimeout(()=>{if(running)analysisLoop();},900);
+  setTimeout(()=>{ if(running) analysisLoop(); },900);
 }
 
 // ── Kreslení ──────────────────────────────────────────────────────────────
