@@ -317,91 +317,22 @@ canvas.addEventListener('click',e=>{
 
 // ── Vision mode ───────────────────────────────────────────────────────────
 let visionMode='normal';
-// Termální canvas worker — zpracovává pixely v malém rozlišení
-const tBuf=document.createElement('canvas');
-const tBufCtx=tBuf.getContext('2d');
-tBuf.width=160;tBuf.height=90; // malé = rychlé
 
-// Iron paleta (předpočítaná)
-const ironPalette=new Uint8Array(256*3);
-(()=>{
-  const stops=[[0,[0,0,0]],[40,[0,0,128]],[80,[64,0,192]],[120,[192,0,128]],
-               [160,[255,64,0]],[200,[255,160,0]],[230,[255,220,0]],[255,[255,255,255]]];
-  for(let v=0;v<256;v++){
-    for(let i=0;i<stops.length-1;i++){
-      const[v0,c0]=stops[i],[v1,c1]=stops[i+1];
-      if(v>=v0&&v<=v1){
-        const t=(v-v0)/(v1-v0);
-        ironPalette[v*3]  =c0[0]+(c1[0]-c0[0])*t;
-        ironPalette[v*3+1]=c0[1]+(c1[1]-c0[1])*t;
-        ironPalette[v*3+2]=c0[2]+(c1[2]-c0[2])*t;
-        break;
-      }
-    }
-  }
-})();
-
-let thermoTick=0;
-function renderThermo(){
-  if(visionMode!=='thermo'||video.readyState<2)return;
-  // Každý 3. frame aby nežralo CPU
-  thermoTick++;
-  if(thermoTick%3!==0)return;
-  tBufCtx.drawImage(video,0,0,tBuf.width,tBuf.height);
-  const id=tBufCtx.getImageData(0,0,tBuf.width,tBuf.height);
-  const d=id.data;
-  for(let i=0;i<d.length;i+=4){
-    const lum=Math.min(255,(0.299*d[i]+0.587*d[i+1]+0.114*d[i+2]-60)*1.6+60);
-    const v=Math.max(0,Math.min(255,lum))|0;
-    d[i]=ironPalette[v*3];d[i+1]=ironPalette[v*3+1];d[i+2]=ironPalette[v*3+2];
-  }
-  tBufCtx.putImageData(id,0,0);
-  tCtx.imageSmoothingEnabled=true;
-  tCtx.imageSmoothingQuality='low';
-  tCtx.drawImage(tBuf,0,0,thermoOv.width,thermoOv.height);
-}
-
-// Edge detection mode — Sobel na malém rozlišení
-const eBuf=document.createElement('canvas');
-const eBufCtx=eBuf.getContext('2d');
-eBuf.width=160;eBuf.height=90;
-let edgeTick=0;
-function renderEdge(){
-  if(visionMode!=='edge'||video.readyState<2)return;
-  edgeTick++;
-  if(edgeTick%3!==0)return;
-  eBufCtx.drawImage(video,0,0,eBuf.width,eBuf.height);
-  const id=eBufCtx.getImageData(0,0,eBuf.width,eBuf.height);
-  const src=id.data;
-  const out=new Uint8ClampedArray(src.length);
-  const w=eBuf.width,h=eBuf.height;
-  for(let y=1;y<h-1;y++){
-    for(let x=1;x<w-1;x++){
-      const i=(y*w+x)*4;
-      const g=(p)=>{const ii=(p[0]*w+p[1])*4;return 0.299*src[ii]+0.587*src[ii+1]+0.114*src[ii+2];};
-      const gx=(-g([y-1,x-1])-2*g([y,x-1])-g([y+1,x-1])+g([y-1,x+1])+2*g([y,x+1])+g([y+1,x+1]));
-      const gy=(-g([y-1,x-1])-2*g([y-1,x])-g([y-1,x+1])+g([y+1,x-1])+2*g([y+1,x])+g([y+1,x+1]));
-      const mag=Math.min(255,Math.sqrt(gx*gx+gy*gy)*1.5);
-      out[i]=mag;out[i+1]=Math.min(255,mag*1.2);out[i+2]=0;out[i+3]=255;
-    }
-  }
-  const od=new ImageData(out,w,h);
-  eBufCtx.putImageData(od,0,0);
-  tCtx.fillStyle='#000';
-  tCtx.fillRect(0,0,thermoOv.width,thermoOv.height);
-  tCtx.imageSmoothingEnabled=true;
-  tCtx.drawImage(eBuf,0,0,thermoOv.width,thermoOv.height);
-}
+// Thermo simulace POUZE přes CSS filtry — 0 CPU overhead
+// Iron-like efekt: hue-rotate + saturate + kontrast
+const VISION_FILTERS={
+  normal: '',
+  bw:     'grayscale(1) contrast(1.6) brightness(1.1)',
+  nvg:    'grayscale(1) brightness(2.4) contrast(1.8) sepia(1) hue-rotate(82deg) saturate(6)',
+  thermo: 'saturate(5) hue-rotate(200deg) contrast(1.8) brightness(0.85)',
+  edge:   'grayscale(1) contrast(8) brightness(0.4)',
+};
 
 function setVision(m){
   visionMode=m;
-  const filters={normal:'',bw:'grayscale(1) contrast(1.5) brightness(1.1)',
-    nvg:'grayscale(1) brightness(2.2) contrast(2) sepia(1) hue-rotate(82deg) saturate(5)',
-    thermo:'',edge:''};
-  video.style.filter=filters[m]||'';
-  const useOv=m==='thermo'||m==='edge';
-  thermoOv.style.display=useOv?'block':'none';
-  if(!useOv){tCtx.clearRect(0,0,thermoOv.width,thermoOv.height);}
+  video.style.filter=VISION_FILTERS[m]||'';
+  // Skryj overlay canvas — nepotřebujeme ho
+  thermoOv.style.display='none';
   document.querySelectorAll('.vbtn').forEach(b=>b.classList.toggle('on',b.dataset.m===m));
 }
 
@@ -453,10 +384,6 @@ function draw(ts){
       }
     }
 
-    // Render vision effects
-    if(visionMode==='thermo') renderThermo();
-    if(visionMode==='edge')   renderEdge();
-
     // Kříž + kompas
     drawCrosshair();
     if(gyroAvail) drawCompass();
@@ -479,96 +406,52 @@ function draw(ts){
   requestAnimationFrame(draw);
 }
 
-// ── COCO detection loop ───────────────────────────────────────────────────
+// ── COCO detection — single fast pass ────────────────────────────────────
 let detRunning=false;
-
-// Zbraně: COCO nemá rifle/gun, ale detekujeme heuristikou
-// + COCO třídy které mohou být zbraně
 const WEAPON_CLASSES=['knife','baseball bat','scissors'];
 const PERSON_CLASS='person';
-
+const detBuf=document.createElement('canvas');
+const detCtx=detBuf.getContext('2d');
 
 function looksLikeWeapon(bbox){
-  const[,, w,h]=bbox;
+  const[,,w,h]=bbox;
   const ratio=Math.max(w,h)/Math.min(w,h);
-  const relArea=(w*h)/(video.videoWidth*video.videoHeight);
-  return ratio>5&&relArea<0.06&&relArea>0.0005;
+  const rel=(w*h)/(detBuf.width*detBuf.height);
+  return ratio>5&&rel<0.06&&rel>0.0005;
 }
 
-// ── Preprocessing — zvýší kontrast pro lepší detekci na dálku ────────────
-const preBuf=document.createElement('canvas');
-const preCtx=preBuf.getContext('2d');
-
-function preprocessFrame(srcCanvas,dstCanvas,dstCtx,w,h){
-  dstCanvas.width=w; dstCanvas.height=h;
-  // Zvýšení kontrastu a ostrosti přes CSS filter na pomocném canvasu
-  dstCtx.filter='contrast(1.6) brightness(1.15) saturate(0.8)';
-  dstCtx.drawImage(srcCanvas,0,0,w,h);
-  dstCtx.filter='none';
-}
-
-// ── Sliding window detekce — rozdělí snímek na dlaždice ─────────────────
-// Pro každou dlaždici spustí COCO → zachytí malé objekty na dálku
-// NMS — odstraní duplicity
-function nms(dets,iouThresh){
-  dets.sort((a,b)=>b.score-a.score);
-  const keep=[],sup=new Set();
-  for(let i=0;i<dets.length;i++){
-    if(sup.has(i))continue;
-    keep.push(dets[i]);
-    for(let j=i+1;j<dets.length;j++){
-      if(!sup.has(j)&&iou(dets[i].bbox,dets[j].bbox)>iouThresh)sup.add(j);
-    }
-  }
-  return keep;
+// Adaptivní velikost vstupu — závisí na zoomu
+function getDetSize(){
+  const z=parseFloat(document.querySelector('.zb.on')?.dataset.z||1);
+  return z>=3?640:360; // zoom 3x+ = větší vstup pro dálku
 }
 
 async function runDetection(){
   if(!running||!cocoModel||video.readyState<2||detRunning)return;
   detRunning=true;
   try{
-    // A21 optimalizace — jen 2 průchody místo 6
-    // 1. Celý snímek 480px — přehled
-    // 2. Horní 60% — dálka (vzdálené postavy jsou nahoře)
-    const W=480, H=Math.round(480*(video.videoHeight/video.videoWidth));
-    preBuf.width=W; preBuf.height=H;
-    preCtx.filter='contrast(1.4) brightness(1.1)';
-    preCtx.drawImage(video,0,0,W,H);
-    preCtx.filter='none';
+    const W=getDetSize();
+    const H=Math.round(W*(video.videoHeight/video.videoWidth));
+    detBuf.width=W; detBuf.height=H;
+    // Kontrast boost přes CSS filter — hardware accelerated
+    detCtx.filter='contrast(1.4) brightness(1.1)';
+    detCtx.drawImage(video,0,0,W,H);
+    detCtx.filter='none';
 
-    const allDets=[];
-
-    // Průchod 1 — celý snímek, threshold 0.22
-    const raw1=await cocoModel.detect(preBuf,20,0.22);
+    const raw=await cocoModel.detect(detBuf,25,0.18);
     const sx=video.videoWidth/W, sy=video.videoHeight/H;
-    for(const o of raw1){
-      if(o.class!==PERSON_CLASS&&!WEAPON_CLASSES.includes(o.class)) continue;
-      allDets.push({
-        bbox:[o.bbox[0]*sx,o.bbox[1]*sy,o.bbox[2]*sx,o.bbox[3]*sy],
-        score:o.score,isWeapon:o.class!==PERSON_CLASS
-      });
+    const dets=[];
+    for(const o of raw){
+      const isP=o.class===PERSON_CLASS;
+      const isW=WEAPON_CLASSES.includes(o.class)||looksLikeWeapon(o.bbox);
+      if(!isP&&!isW)continue;
+      dets.push({bbox:[o.bbox[0]*sx,o.bbox[1]*sy,o.bbox[2]*sx,o.bbox[3]*sy],score:o.score,isWeapon:!isP});
     }
-
-    // Průchod 2 — horní 55% snímku zvětšené na plných 480px (dálka)
-    const topH=Math.round(H*0.55);
-    preBuf.width=W; preBuf.height=topH;
-    preCtx.filter='contrast(1.6) brightness(1.2)';
-    preCtx.drawImage(video,0,0,video.videoWidth,video.videoHeight*0.55,0,0,W,topH);
-    preCtx.filter='none';
-    const raw2=await cocoModel.detect(preBuf,15,0.15); // nižší threshold pro dálku
-    const sy2=(video.videoHeight*0.55)/topH;
-    for(const o of raw2){
-      if(o.class!==PERSON_CLASS&&!WEAPON_CLASSES.includes(o.class)) continue;
-      allDets.push({
-        bbox:[o.bbox[0]*sx,o.bbox[1]*sy2,o.bbox[2]*sx,o.bbox[3]*sy2],
-        score:o.score*0.9, // trochu snížíme jistotu druhého průchodu
-        isWeapon:o.class!==PERSON_CLASS
-      });
-    }
-
-    updateTracks(nms(allDets,0.35));
+    updateTracks(dets);
   }catch(e){}
   detRunning=false;
+  // Naplánuj další detekci hned jak skončila předchozí + malá pauza
+  if(running) setTimeout(runDetection,50);
 }
 
 // ── Load model ────────────────────────────────────────────────────────────
@@ -582,10 +465,10 @@ async function loadModels(){
 }
 
 // ── Start camera ──────────────────────────────────────────────────────────
-let detInterval=null;
+
 async function startCamera(){
   if(starting)return;starting=true;
-  running=false;clearInterval(detInterval);
+  running=false;
   await new Promise(r=>setTimeout(r,80));
   if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}
   video.srcObject=null;
@@ -613,8 +496,7 @@ async function startCamera(){
     statusEl.textContent='Hledám...';
     tracks=[];running=true;starting=false;
     requestAnimationFrame(draw);
-    // Detekce každých 300ms — nezávislá
-    detInterval=setInterval(runDetection,800); // A21 optimalizace
+    setTimeout(runDetection, 200); // samo-plánující smyčka
   }catch(e){
     starting=false;running=false;
     statusEl.textContent='⚠️ Kamera selhala';startBtn.style.display='block';
